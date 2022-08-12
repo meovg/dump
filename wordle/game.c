@@ -95,14 +95,16 @@ unsigned int rand_gen(void) {
 /* a sequence of bits are used to mask the color of each letter of guessed word
  * color mask of a letter takes 2 bits
  */
-#define mask_set_color(mask, pos, color) \
-    ((*(mask)) |= ((color) << ((pos) << 1)))
+void word_mask_set_color(uint16_t *mask, int pos, int color) {
+    *mask |= ((uint16_t)(color) << (pos << 1));
+}
 
-#define mask_get_color(mask, pos) \
-    ((mask) >> (pos << 1) & 3)
+int word_mask_get_color(uint16_t mask, int pos) {
+    return (int)((mask >> (pos << 1)) & (uint16_t)3);
+}
 
 /* checks whether guessed word is in the word pool using binary search */
-int guess_is_in_pool(const char guess[5]) {
+int word_is_in_pool(const char guess[5]) {
     size_t l = 0;
     size_t r = POOL_SIZE - 1;
     size_t m;
@@ -124,14 +126,14 @@ int guess_is_in_pool(const char guess[5]) {
 /* gets color mask based on how the guessed word matches the answer
  * requires at least 10 bits to mask 5 letters
  */
-uint16_t guess_get_mask(const char guess[5], const char answer[5]) {
+uint16_t word_get_mask(const char guess[5], const char answer[5]) {
     uint16_t color_mask = 0;
     int visited_mask = 0;
 
     /* checks for matched positions */
     for (int i = 0; i < 5; i++) {
         if (answer[i] == guess[i]) {
-            mask_set_color(&color_mask, i, MSK_GREEN);
+            word_mask_set_color(&color_mask, i, MSK_GREEN);
             visited_mask |= 1 << i;
         }
     }
@@ -142,9 +144,9 @@ uint16_t guess_get_mask(const char guess[5], const char answer[5]) {
             continue;
         }
         for (int j = 0; j < 5; j++) {
-            int tmp = mask_get_color(color_mask, j);
+            int tmp = word_mask_get_color(color_mask, j);
             if (tmp == MSK_GREY && answer[i] == guess[j]) {
-                mask_set_color(&color_mask, j, MSK_YELLOW);
+                word_mask_set_color(&color_mask, j, MSK_YELLOW);
                 visited_mask |= 1 << i;
                 break;
             }
@@ -300,6 +302,16 @@ static const size_t keyb_offset_y[] = {
  */
 uint64_t keyb_color_mask;
 
+void keyb_mask_set_color(uint64_t *mask, int pos, int color) {
+    int color_inv = color ^ 3;
+    *mask |= ((uint64_t)3 << (pos << 1));
+    *mask ^= ((uint64_t)color_inv << (pos << 1));
+}
+
+int keyb_mask_get_color(uint64_t mask, int pos) {
+    return (int)((mask >> (pos << 1)) & (uint64_t)3);
+}
+
 void keyb_place(size_t x, size_t y, char ch, int fore, int back) {
     tile_draw(x, y, x + 2, y + 2, fore, back);
     console_write_wchar(x + 1, y + 1, ch, fore, back);
@@ -316,15 +328,15 @@ void keyb_draw(int x, int y) {
 /* recolors a tile in the onscreen keyboard */
 void keyb_recolor_tile(size_t x, size_t y, char ch, int color) {
     int i = ch - 'A';
-    int mask;
 
-    switch (mask_get_color(keyb_color_mask, i)) {
+    switch (keyb_mask_get_color(keyb_color_mask, i)) {
+        int mask;
     case MSK_GREEN:
         break;
     case MSK_YELLOW:
         if (color == B_GREEN) {
             keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], ch, F_WHITE, B_GREEN);
-            mask_set_color(&keyb_color_mask, i, MSK_GREEN);
+            keyb_mask_set_color(&keyb_color_mask, i, MSK_GREEN);
         }
         break;
     default:
@@ -332,7 +344,7 @@ void keyb_recolor_tile(size_t x, size_t y, char ch, int color) {
             : (color == B_YELLOW ? MSK_YELLOW 
             : MSK_GREY));
         keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], ch, F_WHITE, color);
-        mask_set_color(&keyb_color_mask, i, mask);
+        keyb_mask_set_color(&keyb_color_mask, i, mask);
     }
 }
 
@@ -357,7 +369,7 @@ void gameplay(const char answer[5]) {
             if (kbhit()) {
                 int ch = getch();
 
-                if (ch == KB_ENTER && pos == 5 && guess_is_in_pool(guess)) {
+                if (ch == KB_ENTER && pos == 5 && word_is_in_pool(guess)) {
                     break;
 
                 } else if (ch == KB_BACKS && pos > 0) {
@@ -376,12 +388,12 @@ void gameplay(const char answer[5]) {
         /* moves the cursor to the first tile of the row */
         x = 0;
         /* checks the difference and gets color mask from the guess */
-        mask = guess_get_mask(guess, answer);
+        mask = word_get_mask(guess, answer);
 
         /* colors tiles in grid row and keyboard */
         int tile_color;
         for (int j = 0; j < 5; j++) {
-            switch (mask_get_color(mask, j)) {
+            switch (word_mask_get_color(mask, j)) {
             case MSK_GREEN:
                 tile_color = B_GREEN; break;
             case MSK_YELLOW:
