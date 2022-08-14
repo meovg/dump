@@ -1,13 +1,14 @@
+# a basic markov chain text generator
+
 import argparse
 import bisect
 import random
-from collections import defaultdict
-from queue import Queue
 
 def tokenize(filename):
     with open(filename, 'r') as f:
-        word_seq = " ".join(f)
+        word_seq = ' '.join(f)
         return word_seq.split()
+
 
 def get_markov_chain(words, state_size):
     word_count = len(words)
@@ -16,28 +17,19 @@ def get_markov_chain(words, state_size):
         raise Exception('State size is larger than sample text size')
 
     chain = {}
-    state_buf = Queue()
+    state = ' '.join(words[:state_size])
 
-    for i, word in enumerate(words):
-        if i < state_size:
-            state_buf.put(word)
-            if i == state_size - 1:
-                current_state = ' '.join(list(state_buf.queue)) 
-        else:
-            state_buf.get()
-            state_buf.put(word)
-            next_state = ' '.join(list(state_buf.queue))
-
-            if current_state not in chain:
-                chain[current_state] = {}
-            if next_state not in chain[current_state]:
-                chain[current_state][next_state] = 0
-
-            chain[current_state][next_state] += 1
-            current_state = next_state
+    for word in words[state_size:]:
+        if state not in chain:
+            chain[state] = {}
+        if word not in chain[state]:
+            chain[state][word] = 0
+        chain[state][word] += 1
+        state = ' '.join(state.split()[1:] + [word])
     return chain
 
-def gen_next_state(chain, current):
+
+def gen_next(chain, current):
     choices = list(chain[current].keys())
     choices_occ = list(chain[current].values())
     total_occ = sum(choices_occ)
@@ -53,6 +45,7 @@ def gen_next_state(chain, current):
     index = bisect.bisect(choices_cumdist, r)
     return choices[index]
 
+
 def gen_rand_state(chain):
     uppercase_states = [x for x in chain.keys() if x[0].isupper()]
     if len(uppercase_states):
@@ -60,14 +53,17 @@ def gen_rand_state(chain):
     else:
         return random.choice(list(markov_chain.keys()))
 
+
 def gen_text(chain, wordcount):
-    current = gen_rand_state(chain)
-    res = current.split()[:wordcount]
+    state = gen_rand_state(chain)
+    res = state.split()[:wordcount]
 
     while len(res) < wordcount:
-        current = gen_next_state(chain, current)
-        res.append(current.split()[-1])
+        word = gen_next(chain, state)
+        res.append(word)
+        state = ' '.join(state.split()[1:] + [word])
     return ' '.join(res)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Markov chain string generator')

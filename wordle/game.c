@@ -30,14 +30,13 @@
 #define B_GREEN     37
 #define B_YELLOW    110
 #define B_GREY      128
-
 #define F_WHITE     15
 
 /* mask defines the color to be placed on the tiles as hints */
-#define MSK_GREY    0   /* 00b */
-#define MSK_YELLOW  1   /* 01b */
-#define MSK_GREEN   2   /* 10b */
-#define MSK_WIN     682 /* 1010101010b */
+#define MSK_GREY    0
+#define MSK_YELLOW  1
+#define MSK_GREEN   2
+#define MSK_WIN     682
 
 /* letter tile sizes */
 #define TILE_H      3
@@ -46,19 +45,13 @@
 /* on screen keyboard offsets */
 #define KEY_W       3
 #define KEY_H       3
-
 #define KEY_TOP_X   0
 #define KEY_MID_X   2
 #define KEY_BOT_X   4
-
 #define KEY_TOP_Y   0
 #define KEY_MID_Y   3
 #define KEY_BOT_Y   6
 
-/* guess limit of the game */
-#define GUESS_LIM   6
-
-/* switches ASCII character case */
 char uppercase(char u) {
     return (u >= 97 && u <= 122 ? u - 32 : u);
 }
@@ -87,7 +80,6 @@ void rand_seed(void) {
     rand_val = (tv_sec ^ tv_usec) | 1;
 }
 
-/* returns a pseudorandom number from the seed */
 unsigned int rand_gen(void) {
     return (rand_val *= 3) >> 1;
 }
@@ -123,22 +115,17 @@ int word_is_in_pool(const char guess[5]) {
     return 0;
 }
 
-/* gets color mask based on how the guessed word matches the answer
- * requires at least 10 bits to mask 5 letters
- */
+/* gets color mask based on how the guessed word matches the answer */
 uint16_t word_get_mask(const char guess[5], const char answer[5]) {
     uint16_t color_mask = 0;
     int visited_mask = 0;
 
-    /* checks for matched positions */
     for (int i = 0; i < 5; i++) {
         if (answer[i] == guess[i]) {
             word_mask_set_color(&color_mask, i, MSK_GREEN);
             visited_mask |= 1 << i;
         }
     }
-
-    /* checks for correct letters at incorrect positions */
     for (int i = 0; i < 5; i++) {
         if ((visited_mask >> i) & 1) {
             continue;
@@ -195,22 +182,18 @@ void console_reset_output_color(void) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), init_attrs);
 }
 
-/* moves the cursor to a specific location on console */
 void console_set_cursor_pos(int x, int y) {
     COORD loc = {(short)x, (short)y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), loc);
 }
 
-/* returns the coordinate of the cursor */
 COORD console_get_cursor_pos(void) {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     return csbi.dwCursorPosition;
 }
 
-/* writes a wchar_t typed character at the position (x, y) with fore/background color
- * note: at the end of the function, the cursor location is (x, y)
- */
+/* writes a wchar_t typed character at the position (x, y) with fore/background color */
 void console_write_wchar(int x, int y, wchar_t ch, int fore, int back) {
     console_set_cursor_pos(x, y);
     console_set_output_color(fore, back);
@@ -229,17 +212,14 @@ void tile_draw(int xa, int ya, int xb, int yb, int fore, int back) {
             console_write_wchar(i, j, 0, fore, back);
         }
     }
-
     for (int i = xa + 1; i < xb; i++) {
         console_write_wchar(i, ya, W_HOR, fore, back);
         console_write_wchar(i, yb, W_HOR, fore, back);
     }
-
     for (int i = ya + 1; i < yb; i++) {
         console_write_wchar(xa, i, W_VER, fore, back);
         console_write_wchar(xb, i, W_VER, fore, back);
     }
-
     console_write_wchar(xa, ya, W_TOPL, fore, back);
     console_write_wchar(xa, yb, W_BOTL, fore, back);
     console_write_wchar(xb, ya, W_TOPR, fore, back);
@@ -248,20 +228,18 @@ void tile_draw(int xa, int ya, int xb, int yb, int fore, int back) {
     console_set_cursor_pos(xa, ya);
 }
 
-void grid_place(size_t x, size_t y, char ch, int fore, int back) {
+void grid_place(int x, int y, char ch, int fore, int back) {
     tile_draw(x, y, x + 4, y + 2, fore, back);
     console_write_wchar(x + 2, y + 1, ch, fore, back);
     console_set_cursor_pos(x, y);
 }
 
-/* draws the game playing area - a 6x5 board of black tiles
- * note: at the end of the function, the cursor location is (x, y)
- */
+/* draws the game playing area - a 6x5 board of black tiles */
 void grid_draw(int x, int y) {
     int ox = x;
     int oy = y;
 
-    for (int i = 0; i < GUESS_LIM; i++) {
+    for (int i = 0; i < 6; i++) {
         ox = x;
         for (int j = 0; j < 5; j++) {
             tile_draw(ox, oy, ox + TILE_W - 1, oy + TILE_H - 1, F_WHITE, B_BLACK);
@@ -312,7 +290,7 @@ int keyb_mask_get_color(uint64_t mask, int pos) {
     return (int)((mask >> (pos << 1)) & (uint64_t)3);
 }
 
-void keyb_place(size_t x, size_t y, char ch, int fore, int back) {
+void keyb_place(int x, int y, char ch, int fore, int back) {
     tile_draw(x, y, x + 2, y + 2, fore, back);
     console_write_wchar(x + 1, y + 1, ch, fore, back);
     console_set_cursor_pos(x, y);
@@ -326,7 +304,7 @@ void keyb_draw(int x, int y) {
 }
 
 /* recolors a tile in the onscreen keyboard */
-void keyb_recolor_tile(size_t x, size_t y, char ch, int color) {
+void keyb_recolor_tile(int x, int y, char ch, int color) {
     int i = ch - 'A';
 
     switch (keyb_mask_get_color(keyb_color_mask, i)) {
@@ -362,7 +340,7 @@ void gameplay(const char answer[5]) {
     int y = loc.Y;
     int i;
 
-    for (i = 1; i <= GUESS_LIM; i++) {
+    for (i = 1; i <= 6; i++) {
         int pos = 0;
 
         for (;;) {
@@ -371,12 +349,10 @@ void gameplay(const char answer[5]) {
 
                 if (ch == KB_ENTER && pos == 5 && word_is_in_pool(guess)) {
                     break;
-
                 } else if (ch == KB_BACKS && pos > 0) {
                     grid_place(x - TILE_W - 1, y, 0, F_WHITE, B_BLACK);
                     x -= TILE_W + 1; 
                     guess[--pos] = '\0';
-
                 } else if (((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')) && pos < 5) {
                     grid_place(x, y, uppercase(ch), F_WHITE, B_BLACK);
                     x += TILE_W + 1;
@@ -387,10 +363,8 @@ void gameplay(const char answer[5]) {
 
         /* moves the cursor to the first tile of the row */
         x = 0;
-        /* checks the difference and gets color mask from the guess */
         mask = word_get_mask(guess, answer);
 
-        /* colors tiles in grid row and keyboard */
         int tile_color;
         for (int j = 0; j < 5; j++) {
             switch (word_mask_get_color(mask, j)) {
@@ -417,7 +391,6 @@ void gameplay(const char answer[5]) {
     /* game is over, moves the cursor to the end of the playing area */
     int message_row = keyb_start_row + 3 * KEY_H + 1;
     console_set_cursor_pos(0, message_row);
-
     if (mask == MSK_WIN) {
         printf("Solved after %d guess(es)\n", i);
     } else {
