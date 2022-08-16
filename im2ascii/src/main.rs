@@ -23,14 +23,15 @@ fn write_to_file(output_name: &str, contents: &String) -> Result<String, Box<dyn
     Ok("Done".into())
 }
 
-fn convert_to_ascii(input_name: &str, scale: u32) -> String {
+fn convert_to_ascii(input_name: &str, scale: f64) -> String {
     let img = image::open(&Path::new(input_name)).unwrap();
-    let ascii_set = ["@", "%", "#", "0", "+", "=", "-", ";", ".", ",", "'", " "];
+    let ascii_set = ["$", "%", "W", "*", "h", "d", "w", "O", "L",
+        "U", "z", "u", "r", "t", "|", "1", "[", "-", "~", "i", "I", "'", ".", " "];
+
     let mut art = String::new();
     let mut last_y = 0;
-
-    let new_width = img.width() / scale;
-    let new_height = img.height() / scale;
+    let new_width = (img.width() as f64 / scale).round() as u32;
+    let new_height = (img.height() as f64 / scale).round() as u32;
 
     let small_img = img.resize(new_width, new_height, FilterType::Nearest);
 
@@ -42,10 +43,8 @@ fn convert_to_ascii(input_name: &str, scale: u32) -> String {
             art.push_str("\n");
             last_y = pixel.1;
         }
-
         let [r, g, b, a] = pixel.2.0;
         let brightness = ((r as u64 + g as u64 + b as u64 + a as u64) / 4) as f64;
-
         let index = ((brightness / 255.0) * (ascii_set.len() - 1) as f64).round() as usize;
         art.push_str(ascii_set[index]);
     }
@@ -64,16 +63,16 @@ fn main() {
         .expect("No output file argument provided");
 
     let scale = match args.get("scale") {
-        Some(val) => val.parse::<u32>().unwrap(),
-        None => 5,
+        Some(val) => val.parse::<f64>().unwrap(),
+        None => 4.0
     };
 
     let start = time::precise_time_ns();
     let result = convert_to_ascii(input_name, scale);
+
     #[allow(unused_must_use)] {
         write_to_file(output_name, &result);
     }
     let tval = (time::precise_time_ns() - start) / 1000000;
-
     println!("Completed in: {}ms", tval);
 }
