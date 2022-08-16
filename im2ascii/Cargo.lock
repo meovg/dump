@@ -221,6 +221,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "im2ascii"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "time",
+]
+
+[[package]]
 name = "image"
 version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -237,14 +245,6 @@ dependencies = [
  "png",
  "scoped_threadpool",
  "tiff",
-]
-
-[[package]]
-name = "imagetoascii"
-version = "0.1.0"
-dependencies = [
- "image",
- "time",
 ]
 
 [[package]]
