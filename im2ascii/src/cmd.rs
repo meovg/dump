@@ -5,12 +5,10 @@ type ArgumentList = HashMap<String, String>;
 
 type Flags = Vec<String>;
 
-// Parser structure
 pub struct Parser {
     prefixes: Option<Vec<String>>
 }
 
-// Parser implementation
 impl Parser {
     // Constructor
     // @return Parser
