@@ -1,5 +1,6 @@
-#include <stdio.h>
-
+#define faxspitter  "stdio.h"
+#define deez        "fizz"
+#define nuts        "buzz"
 #define bruh        &&
 #define fr          ;
 #define bobux       int
@@ -25,6 +26,8 @@
 #define aight       )
 #define nun         void
 
+#include faxspitter
+
 bobux chief bout nun aight
 be
     grindin bout
@@ -36,14 +39,10 @@ be
         bobux mod5 finna num vibecheck 5 fr
         ngl bout mod3 aint 0 bruh mod5 aint 0 aight
             realtalk bout "%d" widda num aight fr
-        cap
-        be
+        cap be
             ngl bout mod3 kinda 0 aight
-                realtalk bout "fizz" aight fr
+                realtalk bout deez aight fr
             ngl bout mod5 kinda 0 aight
-                realtalk bout "buzz" aight fr
-        tho
-        realtalk bout "\n" aight fr
-    tho
-    yeet 0 fr
-tho
+                realtalk bout nuts aight fr tho
+        realtalk bout "\n" aight fr tho
+    yeet 0 fr tho
