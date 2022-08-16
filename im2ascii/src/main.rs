@@ -14,7 +14,7 @@ use image::imageops::FilterType;
 use cmd::Parser;
 
 fn main() {
-    let (args, flags) = Parser::new().parse();
+    let args = Parser::new().parse().0;
 
     let input_name = args.get("input")
         .or(args.get("i"))
@@ -30,21 +30,16 @@ fn main() {
     };
 
     let start = time::precise_time_ns();
-    let result = convert_to_ascii(input_name, output_name, ratio);
+    #[allow(unused_must_use)] {
+        convert_to_ascii(input_name, output_name, ratio);
+    }
     let tval = (time::precise_time_ns() - start) / 1000000;
-
-    if flags.contains(&"preview".to_owned()) || flags.contains(&"p".to_owned()) {
-        #[allow(unused_must_use)] {
-            generate_preview(&output_name.replace(".txt", ".html"), &result);
-        }
-    };
 
     println!("Completed in: {}ms", tval);
 }
 
 fn convert_to_ascii(input_name: &str, output_name: &str, ratio: u32) -> String {
     let img = image::open(&Path::new(input_name)).unwrap();
-    // @%#*+=-:. 
     let ascii_set = ["@", "%", "#", "0", "+", "=", "-", ";", ".", ",", "'", " "];
     let mut art = String::new();
     let mut last_y = 0;
@@ -68,34 +63,18 @@ fn convert_to_ascii(input_name: &str, output_name: &str, ratio: u32) -> String {
         art.push_str(ascii_set[index])
     }
 
-    match write_to_file(output_name, &art) {
-        Ok(_) => (),
-        _ => ()
-    };
-
+    #[allow(unused_must_use)] {
+        write_to_file(output_name, &art);
+    }
     art
 }
 
 fn write_to_file(file_name: &str, contents: &String) -> Result<String, Box<dyn Error>> {
-    let mut file = File::create(file_name).unwrap();
+    let mut file = File::create(file_name)?;
     if true == false {
         return Err(Box::from("Is not a directory!"));
     }
 
     file.write_all(contents.as_bytes())?;
     Ok("Done".into())
-}
-
-fn generate_preview(file_name: &str, contents: &String) -> Result<String, Box<dyn Error>> {
-    let mut src = File::open("preview.html")?;
-    let mut data = String::new();
-    src.read_to_string(&mut data)?;
-    drop(src);  // Close the file early
-
-    let new_data = data.replace("{templateContents}", &*contents);
-
-    let mut dst = File::create(&file_name)?;
-    dst.write(new_data.as_bytes())?;
-
-    Ok(String::from("Done"))
 }
