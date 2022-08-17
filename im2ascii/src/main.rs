@@ -25,13 +25,15 @@ fn write_to_file(output_name: &str, contents: &String) -> Result<String, Box<dyn
 
 fn convert_to_ascii(input_name: &str, scale: f64) -> String {
     let img = image::open(&Path::new(input_name)).unwrap();
-    let ascii_set = ["$", "%", "W", "*", "h", "d", "w", "O", "L",
-        "U", "z", "u", "r", "t", "|", "1", "[", "-", "~", "i", "I", "'", ".", " "];
+    let ascii_set = ["$", "%", "W", "*", "h", "d", "w", "O", "L", "U", "z", "u", "r",
+        "t", "|", "1", "[", "-", "~", "i", "I", "'", ".", " "];
 
     let mut art = String::new();
     let mut last_y = 0;
     let new_width = (img.width() as f64 / scale).round() as u32;
     let new_height = (img.height() as f64 / scale).round() as u32;
+
+    println!("new size: {}x{}", new_width, new_height);
 
     let small_img = img.resize(new_width, new_height, FilterType::Nearest);
 
@@ -43,9 +45,9 @@ fn convert_to_ascii(input_name: &str, scale: f64) -> String {
             art.push_str("\n");
             last_y = pixel.1;
         }
-        let [r, g, b, a] = pixel.2.0;
-        let brightness = ((r as u64 + g as u64 + b as u64 + a as u64) / 4) as f64;
-        let index = ((brightness / 255.0) * (ascii_set.len() - 1) as f64).round() as usize;
+        let [r, g, b, _a] = pixel.2.0;
+        let luminance = (0.2126 * r as f64 + 0.7152 * g as f64 + 0.0722 * b as f64) as f64;
+        let index = ((luminance / 255.0) * (ascii_set.len() - 1) as f64).round() as usize;
         art.push_str(ascii_set[index]);
     }
     art
