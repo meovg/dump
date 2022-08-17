@@ -30,11 +30,9 @@ fn convert_to_ascii(input_name: &str, scale: f64) -> String {
 
     let mut art = String::new();
     let mut last_y = 0;
+
     let new_width = (img.width() as f64 / scale).round() as u32;
     let new_height = (img.height() as f64 / scale).round() as u32;
-
-    println!("new size: {}x{}", new_width, new_height);
-
     let small_img = img.resize(new_width, new_height, FilterType::Nearest);
 
     println!("Original size: {}x{},  Result size: {}x{}",
@@ -71,10 +69,8 @@ fn main() {
 
     let start = time::precise_time_ns();
     let result = convert_to_ascii(input_name, scale);
+    let _ = write_to_file(output_name, &result);
 
-    #[allow(unused_must_use)] {
-        write_to_file(output_name, &result);
-    }
     let tval = (time::precise_time_ns() - start) / 1000000;
     println!("Completed in: {}ms", tval);
 }
