@@ -21,12 +21,12 @@ fn main() {
     };
 
     if let Err(err) = import_stage {
-        panic!("[error] {:?}", err);
+        panic!("ERROR: {:?}", err);
     }
 
     let execute_stage = bfi.execute();
 
     if let Err(err) = execute_stage {
-        panic!("[error] {:?}", err);
+        panic!("ERROR: {:?}", err);
     }
 }
