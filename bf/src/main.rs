@@ -1,144 +1,32 @@
-use std::io::{self, Read, Write};
+pub mod cmd;
+pub mod error;
+pub mod interpreter;
 
-#[derive(Clone, Copy)]
-pub enum Command {
-    Next,
-    Previous,
-    Increment,
-    Decrement,
-    Output,
-    Input,
-    LoopStart(usize),
-    LoopEnd(usize),
-}
-
-pub struct Interpreter {
-    stack: Vec<usize>,
-    app: Vec<Command>,
-    mem: Vec<u8>,
-    ip: usize,
-    mp: usize,
-}
-
-impl Interpreter {
-    pub fn new(mem_size: usize) -> Interpreter {
-        Interpreter {
-            stack: Vec::new(),
-            mem: vec![0; mem_size],
-            app: Vec::new(),
-            ip: 0,
-            mp: 0
-        }
-    }
-
-    fn parse_token(&mut self, token: char) -> Result<(), String> {
-        if Command::is_valid_token(token) {
-            let index = self.app.len();
-            let cmd = match token.into() {
-                command @ Command::LoopStart(_) => {
-                    self.stack.push(index);
-                    command
-                }
-                Command::LoopEnd(_) => {
-                    let start = match self.stack.pop() {
-                        Some(value) => value,
-                        None => return Err("Loop start not found".to_string()),
-                    };
-                    self.app[start] = Command::LoopStart(index);
-                    Command::LoopEnd(start)
-                }
-                cmd => cmd,
-            };
-            self.app.push(cmd);
-        }
-
-        Ok(())
-    }
-
-    pub fn from_buffer(&mut self, buffer: &str) -> Result<(), String> {
-        for token in buffer.chars() {
-            self.parse_token(token)?;
-        }
-
-        match !self.stack.is_empty() {
-            true => Err("Number of brackets does not match".to_string()),
-            false => Ok(()),
-        }
-    }
-
-    pub fn step(&mut self) -> Result<(), String> {
-        match self.app[self.ip] {
-            Command::Next => {
-                if self.mp + 1 == self.mem.len() {
-                    return Err("out of memory".to_string());
-                }
-                self.mp += 1;
-            }
-            Command::Previous => {
-                if self.mp == 0 {
-                    return Err("cannot access negative memory index".to_string());
-                }
-                self.mp -= 1;
-            }
-            Command::Increment => self.mem[self.mp] = self.mem[self.mp].overflowing_add(1).0,
-            Command::Decrement => self.mem[self.mp] = self.mem[self.mp].overflowing_sub(1).0,
-            Command::Output => {
-                print!("{}", self.mem[self.mp] as char);
-                let _ = io::stdout().flush();
-            }
-            Command::Input => self.mem[self.mp] = io::stdin().bytes().next().unwrap().unwrap(),
-            Command::LoopStart(index) => {
-                if self.mem[self.mp] == 0 {
-                    self.ip = index;
-                }
-            }
-            Command::LoopEnd(index) => {
-                if self.mem[self.mp] != 0 {
-                    self.ip = index;
-                }
-            }
-        }
-        self.ip += 1;
-
-        Ok(())
-    }
-
-    pub fn execute(&mut self) -> Result<(), String> {
-        while self.ip < self.app.len() {
-            self.step()?;
-        }
-
-        Ok(())
-    }
-}
-
-impl From<char> for Command {
-    fn from(token: char) -> Self {
-        match token {
-            '>' => Command::Next,
-            '<' => Command::Previous,
-            '+' => Command::Increment,
-            '-' => Command::Decrement,
-            '.' => Command::Output,
-            ',' => Command::Input,
-            '[' => Command::LoopStart(0),
-            ']' => Command::LoopEnd(0),
-            token => panic!("unknown token `{}`", token),
-        }
-    }
-}
-
-impl Command {
-    pub fn is_valid_token(t: char) -> bool {
-        t == '>' || t == '<' || t == '+' || t == '-' || t == '.' || t == ',' || t == '[' || t == ']'
-    }
-}
+use cmd::Parser;
+use interpreter::Interpreter;
 
 fn main() {
-    let hello_world = r#"
-        ++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>+.+++++++
-        ..+++.>++.<<+++++++++++++++.>.+++.------.--------.>+.>."#;
-    let mut machine = Interpreter::new(30_000);
-    let _ = machine.from_buffer(hello_world);
-    let _ = machine.execute();
+    let args = Parser::new().parse().0;
+
+    let tape_size = match args.get("memsize").or(args.get("sz")) {
+        Some(val) => val.parse::<usize>().unwrap(),
+        None => 65_536,
+    };
+
+    let mut bfi = Interpreter::new(tape_size);
+
+    let import_stage = match args.get("file").or(args.get("f")) {
+        Some(file_name) => bfi.from_file(file_name),
+        None => bfi.from_stdin(),
+    };
+
+    if let Err(err) = import_stage {
+        panic!("[error] {:?}", err);
+    }
+
+    let execute_stage = bfi.execute();
+
+    if let Err(err) = execute_stage {
+        panic!("[error] {:?}", err);
+    }
 }

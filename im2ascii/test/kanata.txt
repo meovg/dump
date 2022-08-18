@@ -1,40 +1,95 @@
-IIII|1ttttttttI|ii|--.'...|                1
-IIII|1ttttttttI|ii|--.'..'|                1
-IIII|1ttttttt|Itii1-|.'.''|                1
-IIII|-t|tttttt~tii1-1'..''t                1
-IIII1-tttttttt-t~~1--''''.1                1
-IIII[-tttttttt-t~i|~ I||-'t.               1
-IIII[-tttttttt-t~~|-     .                 1
-IIII[-tttt|ttt~t-[|~ .. ..                 1
-IIII[-tttt|L*t[11|1[[rd1  .. ......    .   1
-IIII[-tt1d|1||11||1|1|111t.............. . 1
-IIII[[tt-[||||||||||1|||||LI'    ......... |
-IIII[-O[11|||||||||||1||||1-z-iii~[|r||-i. |
-IIIi[W||||||||||||1|||w11111|U~~----[1ttuuzu
-IIIIh1||11|||||||||||1|z111||[1~~~~~~~~~~~1|
-IIII1|||||||||||||11|1[1|1[|t11~~~~~~~~~~   
-IIIW|||||||||||11||1|1-1t|1|U1|O---~~-~~~   
-iII[1||||1-1|11[1u1|11[1h||||z|tU--~~-~~~   
-ii1|||||1||u[t|||r1||||1r[1111||uwi~-----   
-Ii*||111|||dU1LwUO11|1||LhO1|111u1U[-~---t|1
-iiO11||t11|w[|11|w[1|1||1-11|111|rLL1------~
-iI|1||1O|11h|1||1i1|||1|[It|1tz||Lt|11[----~
-~'|t1||U1|111|11OiU||||[['w||td11['..'''''..
-iiU111t11|[1|1[ti'L11||ru..11|w[1|Ltt|||||tu
-~[*||LOz||1[1t11''1r11|zw'.||uLrLOd1111[r|||
-1z1|tU[z11111LO'.'IL|||.-'.O1wdt|Uw11111ut||
-11|tLLO[|111rr''...U|[-u.''r1OLu1OU11111u|||
-|u1Lh*~[|1|r'.-tzzzt[|''LhwOrdUO|uU11111u|||
-OLLhOLO*11wO.iut-I'..''.....'WdUd-u11111u|||
-LwLUUUUUUzrt'''''..'..'''''''.UUz1111111u|||
-OzzUUUUUULwz'.'''...'...''''' UULu111111u|||
-hUUUUUUOLUU*U.''I''''..'.'''.[UUUUOh-[[[u|||
-dUUUUUUUUUUUzw|.'1Iur||.''.'.LUUUUULzu11ut||
-hUUUUUUzUUUUUUUUU|.'''.'.'O*OUUUUUd|u*[iiIII
-dhUwUUUUUUUUUUUzhwuuzUzt-~-zOzUUUhr|dU[IIIII
-hhdh*UUUUUUUUULutUziIIiiIi~~zUULOUw.' tIIIII
-Or-iiOzzUUUUUUO|tw*'IiiIIIII~uUzOh''.zwIIIII
-IiIIiitzUUUUUdzU.'IO~IIIIIIIiIid%tWI.'-IIIII
-IIIIIIIIOzUUwOw~..'~UiiIIIIIIIIIIIIIuLIIIIII
-IIIIIIIIiIOLdW%L.i'1iiIIIIIIIIiIIIIIiiIIIIII
-IIIIIIIIIIIIIIII'''IIiiIIIIIIIIIIIIIIIIIIIII
+IIIIIIiII~|--u|ttttttttttttttttt||Ii|1Iiii~|u|- ~~. .         1.                                     |i[
+IIIIIIIII~|--u|ttttttttttttttttt||Ii|1Iiii~|u|- ~~  .         1.                                     |i[
+IIIIIIIII~|--u|ttttttttttttttttt||Ii|1Iiii~|u|- -~  .         1.                                     |i[
+IIIIIIIII~|--u|ttttttttttttttttt||Ii|1Iiii~|u|- -~            1.                                     |i[
+IIIIIIIII~|--u|ttttttttttttttttt||Ii|1iiii~|u|- -~            1'                                     ti[
+IIIIIIiII~|--u|ttttttttttttttttt||Ii||iiii~|u|- [~            1'                                     ti[
+iiiiiiiiI-|-[u|ttttttttttttttt|tt|Iit1Iiii~1u|- 1- .         .1.                                     |i[
+IIIIIIIiI-|--u|tt|tttttttttttttt||i-r|iiii~1u|- 1~  .         t'                                     |i[
+IIIIIIIiI-|-~r|tt|tttttttttttttt|t~[r|iiii-1u|- 1~  .       . t'                                     |i1
+IIIIIIIiI-|~iu|ttttttttttttttttt|t-[t|i~ii-1u|- 1~  .       . |'                                     |i[
+IIIIIIIiI-1Iir|ttttttttttttttttt|r-[t|i~~~-|u|- --         . .[                                      ti1
+IIIIIIIII-[Iir|ttttttttttttttttt|r-[t|i~~~-|u|- -1.        . .[.                                     ti1
+IIIIIIIII[[iir|ttttttttttttttttt|r-[t1i~~~~|u|~ I[t-I.   .    |                                      ti1
+IIIIIIIII[[iir|ttttttttttttttttt|r-[t|i~~~-|u|~      .'i~-[|||r                                      ti1
+IIIIIIIII[[iir|ttttttttttttttttt|r-[t|i~~~~|u|-  ..          .i .                                    ti1
+IIIIIIIII[[iir|ttttttttttttttttt|r-[t|i~~~-|u|~      ..    ..                                        ti1
+IIIIIIIII[[iir|ttttttttttttttttt|r-[t|i~~~-|u|~   .  .     .                                         t~1
+IIIIIIIII[[iir|ttttttttttttttttt|r-[t|i~~~~|u|- .    ...     . .                                     t~1
+IIIIIIIII[[iir|ttttttttttttttttt||~-tt-1[[[|u1~    ....  ..... .....                                 t~1
+IIIIIIIiI[[iir|ttt|tttt||tt|tuw**Luzrt|1[1|ttruUwwwUt.  ... ..   ...                               . t~1
+IIIIIIIiI[[iir|ttttttttrt|rh**zt[[[[[[[111[[[-[[[[|zOdU1  ..  ........ ............        .... .  . t~1
+IIIIIIIiI[[iir|ttttt|t|1th*Lr1[1111111111[111111111-[tUdL1'..... .............................. . .. t~1
+IIIIIIIiI[[Iir|tttt|1udOt[[11111111[1111[11[111[111[[1[[[1zdt....................................... t~1
+IIIIIIIii[[iir|ttttrwh|[1111111[1111111111111[[11111111111[udd. '.............................. .... t~1
+IIIIIIIIi-[Iir|t|tdu~1[1111111111111111111111111[[11111111111[LWrII'.        ....................... |~|
+iIIIIIIIi-[Iiu1tUhO-|111111111111111111111111111[11[11111111|[-|hr|rtt11[[~iI'.    .. ...............t-1
+iIIIIIIIi-[Iir|t*z-1[111111111111111111111111111111111111111[|1[[h1i~~-111|ttrt|||1~iII'.  ..  ......|i|
+iiiIiiiIi-[iItL*[111111111111111111111111111111111|1[11111111111|-rduuuurrtt|[[--~iIIiiii--[11tttttt|r~1
+iiiiiiiIi-[iiO*r|[111[11111111111111111111111111[1rzt11111111111[[[|wttrruzzzzzzuuuurt|11--~iiiIIi~~~-I|
+iiiiiiiIi-[iIWt-111[1111111111111111111111111111[11uL11111111111111[Uz---[[[1||ttrruuzzzzzzzuurrt|11--it
+iiiiiiiII-~1W[[[|111111111111111111111111111111111111O|[[1[111111|11--Ui~---~-----------------[[-[[1tt|i
+iiiiiiIiI[thL1|11111111111111111111111111111111111111uL1[1[1111111111~1t~--~--------------------[tt|111-
+iiiiiiiII[hd[11|1111111111111111111111111111111111111-Lz1111111111[1--~L|~-~------------------~--~~~111t
+iiiiiiI~'tU[1111[1111111111111111111111111[1111111[1[|-z-11111[[1[111--[zz-~--------------------[       
+iiiiiiI'Id111[[1[11111111111111111111111111[11111111[[|1111111[-[t1|11[[1O~~-------------------~[       
+iiiiiiiIt%[111|111111111111111111111111111t11111[11111[[z[1111--[rU1111-1|--~------------------~[.. .   
+iiiiiii1%r111111111111111[11111111111111[|111111111[[[11Ot11111[[1[U111111Lu~--~----------------[       
+iiiiiiiwh-|11111111111111-1[||111111[111[t[11111111[-[11Lz[11111[1[1r1111[|L[[~-----------------[       
+iiiiiiI%r[1111111111111[[-1[r|111111-111[r[11111111[--11rO[111111[|-O[11[1-uO~---~--------------[       
+iiiiiI[z[1111111111111[--11zz[111111[111[r[11111111[[-1|[dL1111111[11w11[|L1-u~-----------------[       
+iiiiiIU111|111111111111[-11Ou[1111111111[t1111111111[-11[U*[11111[111zu[1[tO1O|-----------------[       
+iiiiiih-11[1111111111111-1[dr11||[11|[11[t11111111111-1[[r%[111111[1[tO111-ULtw~[~--------------[       
+iiiiIz*111111111111t111111-Ot[t111[1111[[r1111111111111[[|zw-[1[111[1[z[111[r1[O|~[---[---------[       
+iiiiidO111111111111111111[[Orr1[1[[1111[[z11111111111[111rO*Lz1[[11[|[t[1111[O[|wzi---~~[--------'..    
+iii~~*u11111111[1[r-1111[[|LUU1[[uLUOOLr1O|1111111111111rLdzhuOz1111111t[111[WU[[Uz[-~[[--------[ttrtt|1
+i~iiuh[111[111111[L[111111uOw1uUr[1111[[t*u[111111111111[[L-rL1-[1[1[1[U[1[11|d*OU1tU*wu~----------[~---
+iiiiOO[111[111111|L111[11[Uwu[||111[[1|[UwU[111111111111[1Oi[w11|11111[L11111[O|zLOOLr1[--------[-------
+iiiI*r[11111[111[zu11[1111Lz111111111[1uOih-11111111111[t[U'it[|111111[wr[1111[|--~---------------------
+~i~I*|[111111111[Lr111111[dt[11[1[111[1Lr~d1111111111111u[L.I[|11111[|1Oz[1111-O|t||||||11[[[--------~~~
+~i~I*1[[[11111111O11111111*[111[[[111[1O-~wt[11111111111U[O.'Iu[1111[rtLL1111|[Oi~-[[1111||ttrrrrttttttt
+ii~'*|1u|[1[1111zz[[11111td111[|[t[1[1|--iuz-1111111111[w-L.'.O|[1111|Lud|[1111Ot'.''''''''''''''''''''.
+ii~Idt[U11111[11Lt[[11111rw111[1[u[11-U-i'|L-1111111111[d[L..'Uu[11111Ludr1111[uw|r||1[[[[-~iiIIII''''''
+iiiidz1U[1111[t1O11111111uO1[111[r1111L-''~O[1111111111[d1L.''1L111111Orhu111[1|duruuuzzzzzzzzzzzuurr|||
+iiiiwUU|11[111w|t1[111111zU11111|1[1tO-..'.Ltt[1111[[1[tOuu....Ur1|[11wuwU[[[1[[LLurrrttttttttt||ttttruz
+~i~iwUw[[1111rwr1[|111111uU111[[z[11Lri.'..UtL[11111|[1uOuu'...tU11[[1wuwz|zur1-Uwuuuzzzzzzuuuuuuuzzzuur
+iiIidOW[1111[LOz-|z11[111uU111[[O[|-Li'..'.urd11[111111LUL|'...~O111[tdzdhur1Ut[rO1[[11111||trrLUurttttt
+~ii|Wz[|[[[1uLwL|O|111[11rU111[OL|-U'..'...-Ldu[11111-O~zO'.....u[11[zWLUwzt11[t1w[1111111111|1zuttttttt
+~i|ht[1111[rLOhrtL[1[1[11rU111rhu1rU.'.'.. ~LdU[11111uz wu......1[1[[UWOdh[[11[z[w[111111111111zrttttttt
+iOhz111-11tLLhO[Uz[1[1111tL111OLt1L-..'..'.IULU[11[1[L~ d-......i11[1wWdhd|[1|[O[O[111111111111zrtt|tttt
+u-1111[[[tLLLz[th11111111|O11Otz~u '......'.z-zt1[1[|I.'1...'.'. r[1uh*LUL|1[1-W|L[111111111111urttttttt
+[1111111|uLUd-rOL[1111111|O1wrutr.......... u'zr11|1w.'u  ....'' z[[LO%ULUu11[1%rU[11111111111[urttttttt
+11-[|[1|UOUwLUh1O111111111Ud|-zUL..'''.'Ii-'r zu|[[O|.~[~-i'...' z[[rU*UOUz[|1|dzU[11111111111[urttttttt
+1Uwr[1uOUOdOhwU~O[1111111[OiI.t 'I-1tuuUUzOu|.tz[tw... 'ULwhhhwOLwLrid*LUUL[1-LrLU[11111111111[urttttttt
+1O|[tUOLLLLOhwu~L|1111111-z''''rO**W%%WWWWhOi |UOUi'..'.%%h******WO.'wWhwUO[1|wuLU[11111111111[urttttttt
+wU11zOLLLLLdwOu~L|[11111[1uI'.'UW******hhhhwi.tU~. '..' WWWWWWWWWWLI'hdW*OL[1LUrOL111111111111[urttttttt
+httLULLhhdLLLLLOh*O[[111[|[i.. izLuut1[iII'.........................~WdhhhU-r|1r*u111111111111[urttttttt
+wuzOUOhOUUUUUUUULLwwr[11[z--.'..'..........................'''''''..IL*wwzhUO[|uh[111111111111[urttttttt
+wzUUhdOUUUUUUUUUUUUO*O[11d[t...'.'''''''''...............'''''''''''.-*LUUUWU1|UO[111111111111[urttttttt
+OUdhzUUUUUUUUUUUUUUUUUdO1ddLI..'.'I'''''''.................'''''''''' zUUUULLz[L|1111111111111[urttttttt
+wOhOULUUUUUUUUUUUUUUUUUdww*L1 'I'II'''''...................'''''''''I.rzUULzz*z1|1|11111111111[urttttttt
+d*hzLzLUUUUUUUUUUULULULzhwwOr.'.'''I''''...................'''III'''' uzUUUUdh*[[|111111111111[urttttttt
+ddLUUUUUUUUUUUUUUUUUUUUUUh*-hu.'''I''''''...'......'.''...'''''''I.' IdUUUUUUUUd**zt[1|111|[|1[zrttttttt
+hdLUUUUUUUUUUUUUOOOLLUUUUdhu|U'.'.'I'.''.'....'.'''........''''''''..[hUUUUUUUUzUO**O[-11[1|111zrttttttt
+dwUUUUUUUUUUUUUUUUUUULLOLOOzLwOr- ...''''   . 'i[I...' '.....''''I''uWUUUUUUUUUUUUUzUwWw11|11|1urttttttt
+hdUUUUUUUUUUUUUUUUUUUUUUUUULUzLwdU|i..' .[II~|uUrUu-[uI ''.'''..'...%LUUUUUUUUUUUUULUUzdu1[1111zrttttttt
+hdUUUUUUUUUUUUUUUUUUUULUUUUUzLUUUwddti .'[zzzt-'.I-uui........''' iUwLzUUUUUUUUUUUUUUUUzhz[1111rrttttttt
+dhLUUUUUUUUUUUUUUUUUUUUUULUULUUUUUUUzUOL~......'...''...'.... .ir%*wULUUUUUUUUUUULhwLOddOL*LOLLUUUUUzzzz
+ddOUUUUUUULUUUUUUUUUUUUUUUUUUUUUUUUULUUdd|..I''.'''..........~L*WhhOUUUUUUUULLUULhLrttuL*w*'III''''''...
+dhdLzLLUUUzUUUUUULUUUUUUUUUUUUUUUUUULzUuLh..  ..    . ..'~1zwUz|hwhOLUUUUUUUUULOhhuOurrtL**..'''''......
+hdhhOUUUwOUUUUUUUUUUUUUUUUUUUUUUUULUzUdh*dWu|rrruzzzzrt|-~i~~--iiWhOUULUUUUUUzLwLurtzdhhU|h''''''''''...
+dhddhdLUUwzULUUUUUUUUUUUUUUUUUUUUUUUw*wuzw*r.II'IIIIIIIiii~~iii~~uWdUzUUUUUUUUhOL|LdO|[tWhh..''''''''..'
+dhddhhhwUUdUzUUUUUUUUUUUUUUUUUUUUUUUhUtrzrdd-I'iIIIiiiiIiiiiIiiiiIz*zLUULUUUUddLOOL[I . [*%.'''''''....'
+ddwwwOOwwdh%hzUUUUUUUUUUUUUUUUUUUUw*trrrttL|O.'''''''''''''''I''III'hUUULUUzLOLwwI..I.....O..'''''''''''
+wOwwOOUur1[twOzLUUUUUUUUUUUUUUUUUO*LLzrttrzzu~''''''''''''''''''''I.zhLUUUUUwLLw~'....'.| r.''.''''''''.
+Ozut-~~IIiII~WwzLzUUUUUUUUUUUUUUz*OutLLzwdw*w-.'''''''''''''''''''.i.uhUULULhwL1i'......z~'I'.''''''''..
+'''III'II'III'z%UUOUUUUUUUUUUUUU*LuttUdI... .Lht.I''I'''''''''''''''''.|whUdWLd1w|''~'.. i-z'I'''''''...
+'''I''''''''I'.|*UzUUUUUUUUUUULddOzzLh|..'''.iOui'''.''''''''''''.'''...Irdw*w%IuW.Iz .'.iUL'..'''''''..
+'''''''''''''I'.u*OUUUULUUUUUUd*LzzUd[.... 1d [LL.I''''''''''''''''''II'..1UOUO~[z[ ~..'i z-'I'''''''''.
+'''''''''''''.'''.IhOzLUUUUUUUdLLLuh-........'. -'''''''''''''''''I''''.III'.I'uL1~Uu-U'tzII''''''''''''
+'''''''''''''''''''[OhzULUUUzwOwOLwU~.' I..'.I~ z.'''''''''''''''''''''''''''''...''tUrzUI''''''''''''''
+''''''''''''''''''''IthLzLULUdOLdLWOI..I '..'iOz-.I'.'''''''''''''''''''''''''''''''.' i[I''''''''''''''
+''''''''''''''''''''II'irhwULdWWhO%hLz'.-i..rI1z''...''''''''''''''''''''''''''''''''.I'I'''''''''''''''
+''''''''''''''''''''.''..[uOOdLtuhui'tL~Lw-iUUz-'.''I''''''''''''''''''''''''''''''I.I''.'''''''''''''''
+'''''''''''''''''''''''I'..iii'..[.'''Iur~uUt.'.'II''''''''''''''''''''''''''''''''''.''I'''''''''''''''
+''''''''''''''''''''''''''''''''''I''''''''''I.'''''''''''''''''''''''''''''''''''''.'''''''''.'''''''''
