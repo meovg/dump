@@ -12,6 +12,7 @@ pub enum Opcode {
     Input,
     LoopStart(usize),
     LoopEnd(usize),
+    None,
 }
 
 impl From<char> for Opcode {
@@ -25,15 +26,17 @@ impl From<char> for Opcode {
             ',' => Opcode::Input,
             '[' => Opcode::LoopStart(0),
             ']' => Opcode::LoopEnd(0),
-            token => panic!("Unknown opcode `{}`", token),
+            _ => Opcode::None,
         }
     }
 }
 
 impl Opcode {
-    pub fn is_opcode(t: char) -> bool {
-        t == '>' || t == '<' || t == '+' || t == '-'
-        || t == '.'|| t == ',' || t == '[' || t == ']'
+    pub fn is_some(self) -> bool {
+        match self {
+            Opcode::None => false,
+            _ => true,
+        }
     }
 }
 
@@ -57,9 +60,11 @@ impl Interpreter {
     }
 
     fn parse_token(&mut self, token: char) -> Result<(), BfError> {
-        if Opcode::is_opcode(token) {
+        let op: Opcode = token.into();
+
+        if op.is_some() {
             let index = self.app.len();
-            let instruction = match token.into() {
+            let instruction = match op {
                 cmd @ Opcode::LoopStart(_) => {
                     self.stack.push(index);
                     cmd
@@ -153,6 +158,7 @@ impl Interpreter {
                     self.instr_ptr = index;
                 }
             }
+            _ => ()
         }
         self.instr_ptr += 1;
 
