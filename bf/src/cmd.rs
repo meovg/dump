@@ -10,25 +10,18 @@ pub struct Parser {
 }
 
 impl Parser {
-    // Constructor
-    // @return Parser
     pub fn new() -> Parser {
         Parser {
             prefixes: None
         }
     }
 
-    // Sets the prefix for the arguments
-    // param prefixes Vec<String>
-    // @return Parser
     #[allow(dead_code)]
     pub fn strict_prefix(&mut self, prefixes: Vec<String>) -> &Self {
         self.prefixes = Some(prefixes);
         self
     }
 
-    // Parses the given cmd arguments
-    // @return Tuple(ArgumentList, Flags)
     pub fn parse(&self) -> (ArgumentList, Flags) {
         let mut args_list = ArgumentList::new();
         let mut flags = Flags::new();

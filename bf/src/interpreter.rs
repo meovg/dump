@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 
 #[derive(Clone, Copy)]
-pub enum Command {
+pub enum Opcode {
     Next,
     Previous,
     Increment,
@@ -14,23 +14,23 @@ pub enum Command {
     LoopEnd(usize),
 }
 
-impl From<char> for Command {
+impl From<char> for Opcode {
     fn from(token: char) -> Self {
         match token {
-            '>' => Command::Next,
-            '<' => Command::Previous,
-            '+' => Command::Increment,
-            '-' => Command::Decrement,
-            '.' => Command::Output,
-            ',' => Command::Input,
-            '[' => Command::LoopStart(0),
-            ']' => Command::LoopEnd(0),
+            '>' => Opcode::Next,
+            '<' => Opcode::Previous,
+            '+' => Opcode::Increment,
+            '-' => Opcode::Decrement,
+            '.' => Opcode::Output,
+            ',' => Opcode::Input,
+            '[' => Opcode::LoopStart(0),
+            ']' => Opcode::LoopEnd(0),
             token => panic!("Unknown opcode `{}`", token),
         }
     }
 }
 
-impl Command {
+impl Opcode {
     pub fn is_opcode(t: char) -> bool {
         t == '>' || t == '<' || t == '+' || t == '-'
         || t == '.'|| t == ',' || t == '[' || t == ']'
@@ -39,7 +39,7 @@ impl Command {
 
 pub struct Interpreter {
     stack: Vec<usize>,
-    app: Vec<Command>,
+    app: Vec<Opcode>,
     tape: Vec<u8>,
     instr_ptr: usize,
     data_ptr: usize,
@@ -57,24 +57,24 @@ impl Interpreter {
     }
 
     fn parse_token(&mut self, token: char) -> Result<(), BfError> {
-        if Command::is_opcode(token) {
+        if Opcode::is_opcode(token) {
             let index = self.app.len();
-            let cmd = match token.into() {
-                command @ Command::LoopStart(_) => {
+            let instruction = match token.into() {
+                cmd @ Opcode::LoopStart(_) => {
                     self.stack.push(index);
-                    command
+                    cmd
                 }
-                Command::LoopEnd(_) => {
+                Opcode::LoopEnd(_) => {
                     let start = match self.stack.pop() {
                         Some(value) => value,
                         None => return Err(BfiError::NoLoopStart.into()),
                     };
-                    self.app[start] = Command::LoopStart(index);
-                    Command::LoopEnd(start)
+                    self.app[start] = Opcode::LoopStart(index);
+                    Opcode::LoopEnd(start)
                 }
-                cmd => cmd,
+                op => op,
             };
-            self.app.push(cmd);
+            self.app.push(instruction);
         }
 
         Ok(())
@@ -116,41 +116,39 @@ impl Interpreter {
 
     pub fn run_instruction(&mut self) -> Result<(), BfError> {
         match self.app[self.instr_ptr] {
-            Command::Next => {
+            Opcode::Next => {
                 if self.data_ptr + 1 == self.tape.len() {
                     return Err(BfiError::OutTapeUpperBound.into());
                 }
                 self.data_ptr += 1;
             }
-            Command::Previous => {
+            Opcode::Previous => {
                 if self.data_ptr == 0 {
                     return Err(BfiError::OutTapeLowerBound.into());
                 }
                 self.data_ptr -= 1;
             }
-            Command::Increment => {
+            Opcode::Increment => {
                 self.tape[self.data_ptr] = self.tape[self.data_ptr].overflowing_add(1).0;
             }
-            Command::Decrement => {
+            Opcode::Decrement => {
                 self.tape[self.data_ptr] = self.tape[self.data_ptr].overflowing_sub(1).0;
             }
-            Command::Output => {
+            Opcode::Output => {
                 print!("{}", self.tape[self.data_ptr] as char);
                 let _ = io::stdout().flush();
             }
-            Command::Input => {
+            Opcode::Input => {
                 self.tape[self.data_ptr] = io::stdin()
-                    .bytes()
-                    .next()
-                    .unwrap()
-                    .unwrap();
+                    .bytes().next()
+                    .unwrap().unwrap();
             }
-            Command::LoopStart(index) => {
+            Opcode::LoopStart(index) => {
                 if self.tape[self.data_ptr] == 0 {
                     self.instr_ptr = index;
                 }
             }
-            Command::LoopEnd(index) => {
+            Opcode::LoopEnd(index) => {
                 if self.tape[self.data_ptr] != 0 {
                     self.instr_ptr = index;
                 }

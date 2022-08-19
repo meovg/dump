@@ -1,6 +1,6 @@
-pub mod cmd;
-pub mod error;
-pub mod interpreter;
+mod cmd;
+mod error;
+mod interpreter;
 
 use cmd::Parser;
 use interpreter::Interpreter;
