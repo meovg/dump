@@ -10,8 +10,10 @@
 #include <wchar.h>
 #include <windows.h>
 
-#include "pool.h"
+#include "map.h"
 #include "answers.h"
+
+typedef MapOf(int) poolmap;
 
 /* special keyboard code (enter, backspace) */
 #define KB_ENTER    13
@@ -96,23 +98,8 @@ int word_mask_get_color(uint16_t mask, int pos) {
 }
 
 /* checks whether guessed word is in the word pool using binary search */
-int word_is_in_pool(const char guess[5]) {
-    size_t l = 0;
-    size_t r = POOL_SIZE - 1;
-    size_t m;
-
-    while (l <= r) {
-        m = (l + r) >> 1;
-        int cmp = strcmp(guess, pool[m]);
-        if (cmp == 0) {
-            return 1;
-        } else if (cmp > 0) {
-            l = m + 1;
-        } else {
-            r = m - 1;
-        }
-    }
-    return 0;
+int word_is_in_pool(const char guess[5], poolmap *pool) {
+    return map_get(pool, guess) != NULL;
 }
 
 /* gets color mask based on how the guessed word matches the answer */
@@ -326,7 +313,7 @@ void keyb_recolor_tile(int x, int y, char ch, int color) {
     }
 }
 
-void gameplay(const char answer[5]) {
+void gameplay(const char answer[5], poolmap *pool) {
     COORD loc = console_get_cursor_pos();
 
     int grid_start_row = loc.Y;
@@ -347,7 +334,7 @@ void gameplay(const char answer[5]) {
             if (kbhit()) {
                 int ch = getch();
 
-                if (ch == KB_ENTER && pos == 5 && word_is_in_pool(guess)) {
+                if (ch == KB_ENTER && pos == 5 && word_is_in_pool(guess, pool)) {
                     break;
                 } else if (ch == KB_BACKS && pos > 0) {
                     grid_place(x - TILE_W - 1, y, 0, F_WHITE, B_BLACK);
@@ -403,10 +390,26 @@ void gameplay(const char answer[5]) {
 }
 
 int main(void) {
+    poolmap pool;
+    map_init(&pool);
+
+    FILE *f = fopen("words.txt", "r");
+
+    char token[7] = {[6] = '\0'};
+    while (fgets(token, 7, f)) {
+        token[5] = '\0';
+        map_set(&pool, token, 0);
+    }
+
+    fclose(f);
+
     console_get_init_info();
     console_hide_cursor();
+
     rand_seed();
-    gameplay(answers[rand_gen() % ANS_SIZE]);
+    gameplay(answers[rand_gen() % ANS_SIZE], &pool);
+
+    map_clear(&pool);
     console_show_cursor();
     return 0;
 }

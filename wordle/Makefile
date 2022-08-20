@@ -6,11 +6,11 @@ RM = del
 
 default: $(TARGET)
 
-$(TARGET): game.o
-	$(CC) $(CFLAGS) game.o -o $@
+$(TARGET): map.o game.o
+	$(CC) $(CFLAGS) map.o game.o -o $@
 
 run:
-	./wordle
+	./$(TARGET)
 
 clean:
 	@echo cleaning up executables...
