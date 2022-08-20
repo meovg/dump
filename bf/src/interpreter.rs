@@ -1,6 +1,6 @@
-use crate::error::{BfError, BfiError};
 use std::fs::File;
 use std::io::{self, Read, Write};
+use crate::error::{BfError, BfiError};
 
 #[derive(Clone, Copy)]
 pub enum Opcode {
@@ -119,7 +119,7 @@ impl Interpreter {
         self.from_buffer(&buf)
     }
 
-    pub fn run_instruction(&mut self) -> Result<(), BfError> {
+    fn run_instruction(&mut self) -> Result<(), BfError> {
         match self.app[self.instr_ptr] {
             Opcode::Next => {
                 if self.data_ptr + 1 == self.tape.len() {
@@ -141,7 +141,7 @@ impl Interpreter {
             }
             Opcode::Output => {
                 print!("{}", self.tape[self.data_ptr] as char);
-                let _ = io::stdout().flush();
+                io::stdout().flush()?;
             }
             Opcode::Input => {
                 self.tape[self.data_ptr] = io::stdin()
