@@ -11,7 +11,6 @@
 #include <windows.h>
 
 #include "map.h"
-#include "answers.h"
 
 typedef MapOf(int) poolmap;
 
@@ -60,30 +59,6 @@ char uppercase(char u) {
 
 char lowercase(char u) {
     return (u >= 65 && u <= 90 ? u + 32 : u);
-}
-
-unsigned int rand_val;
-
-/* generates seed value for creating pseudorandom numbers
- * using the equivalent approach of gettimeofday() in windows
- */
-void rand_seed(void) {
-    static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
-
-    SYSTEMTIME system_time;
-    FILETIME file_time;
-    GetSystemTime(&system_time);
-    SystemTimeToFileTime(&system_time, &file_time);
-
-    uint64_t timesec = (uint64_t)(file_time.dwLowDateTime);
-    timesec |= (uint64_t)(file_time.dwHighDateTime) << 32;
-    uint64_t tv_sec = (uint64_t)((timesec - EPOCH) / 10000000L);
-    uint64_t tv_usec = (uint64_t)(system_time.wMilliseconds * 1000);
-    rand_val = (tv_sec ^ tv_usec) | 1;
-}
-
-unsigned int rand_gen(void) {
-    return (rand_val *= 3) >> 1;
 }
 
 /* a sequence of bits are used to mask the color of each letter of guessed word
@@ -389,27 +364,33 @@ void gameplay(const char answer[5], poolmap *pool) {
     fflush(stdout);
 }
 
-int main(void) {
-    poolmap pool;
-    map_init(&pool);
-
-    FILE *f = fopen("words.txt", "r");
+void import_words(const char *file_name, poolmap *pool) {
+    FILE *f = fopen(file_name, "r");
 
     char token[7] = {[6] = '\0'};
     while (fgets(token, 7, f)) {
         token[5] = '\0';
-        map_set(&pool, token, 0);
+        map_set(pool, token, 0);
     }
 
     fclose(f);
+}
 
+int main(void) {
     console_get_init_info();
     console_hide_cursor();
 
-    rand_seed();
-    gameplay(answers[rand_gen() % ANS_SIZE], &pool);
+    poolmap pool;
+    map_init(&pool);
+
+    import_words("answers.txt", &pool);
+    const char *answer = map_rand(&pool)->key;
+    import_words("words.txt", &pool);
+
+    gameplay(answer, &pool);
 
     map_clear(&pool);
     console_show_cursor();
+
     return 0;
 }

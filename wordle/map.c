@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <inttypes.h>
+#include <windows.h>
 
 #include "map.h"
 
@@ -178,4 +180,48 @@ void map_ht_delete(HashTable *table, const char *key) {
 
 uint64_t map_ht_size(const HashTable *table) {
     return table->entrysize;
+}
+
+unsigned int rand_seed(void) {
+    static const uint64_t EPOCH = ((uint64_t) 116444736000000000ULL);
+
+    SYSTEMTIME system_time;
+    FILETIME file_time;
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+
+    uint64_t timesec = (uint64_t)(file_time.dwLowDateTime);
+    timesec |= (uint64_t)(file_time.dwHighDateTime) << 32;
+    uint64_t tv_sec = (uint64_t)((timesec - EPOCH) / 10000000L);
+    uint64_t tv_usec = (uint64_t)(system_time.wMilliseconds * 1000);
+
+    return (unsigned int)((tv_sec ^ tv_usec) | 1);
+}
+
+unsigned int rand_gen(unsigned int *seed) {
+    return (*(seed) *= 3) >> 1;
+}
+
+const HashEntry *map_ht_rand(const HashTable *table) {
+    if (table->entrysize == 0 || table->bucketsize == 0) {
+        return NULL;
+    }
+
+    unsigned int seed = rand_seed();
+    HashEntry *choice = NULL;
+    while (choice == NULL) {
+        choice = table->buckets[rand_gen(&seed) % table->bucketsize];
+    }
+
+    HashEntry *it = choice->next;
+    int n = 2;
+    while (it != NULL) {
+        unsigned int r = rand_gen(&seed) % n;
+        if (r == 0) {
+            choice = it;
+        }
+        n++;
+        it = it->next;
+    }
+    return choice;
 }
