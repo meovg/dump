@@ -9,14 +9,14 @@
 typedef struct RBNode RBNode;
 
 struct RBNode {
-    int color;
-    RBNode *left, *right, *parent;
+  int color;
+  RBNode *left, *right, *parent;
 };
 
 typedef struct RBTree RBTree;
 
 struct RBTree {
-    RBNode *root;
+  RBNode *root;
 };
 
 void rb_clear(RBTree *tree);

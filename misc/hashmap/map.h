@@ -9,16 +9,16 @@ typedef struct HashTable HashTable;
 
 #define MapOf(V) \
 struct { \
-    HashTable table; \
-    V val; \
-    V *ref; \
+  HashTable table; \
+  V val; \
+  V *ref; \
 }
 
 #define map_init(map)           (memset(&((map)->table), 0, sizeof (map)->table))
 
 #define map_set(map, key, value) do { \
-    (map)->val = value; \
-    map_ht_set(&((map)->table), key, &((map)->val), sizeof (map)->val); \
+  (map)->val = value; \
+  map_ht_set(&((map)->table), key, &((map)->val), sizeof (map)->val); \
 } while (0)
 
 #define map_get(map, key)       ((map)->ref = map_ht_get(&((map)->table), key)) 
@@ -30,16 +30,16 @@ struct { \
 #define map_size(map)           (map_ht_size(&((map)->table)))
 
 struct HashEntry {
-    uint64_t hash;
-    char *key;
-    void *value;
-    HashEntry *next;
+  uint64_t hash;
+  char *key;
+  void *value;
+  HashEntry *next;
 };
 
 struct HashTable {
-    HashEntry** buckets;
-    uint64_t entrysize;
-    uint64_t bucketsize;
+  HashEntry** buckets;
+  uint64_t entrysize;
+  uint64_t bucketsize;
 };
 
 #define DICT_HT_MAX_ENTRY_SIZE  (UINT64_MAX)

@@ -4,42 +4,42 @@
 #include <inttypes.h>
 
 enum {
-    E_DSTRING_SUCCESS,
-    E_DSTRING_NGPTR,
-    E_DSTRING_NGVAL,
-    E_DSTRING_NALLOC,
-    E_DSTRING_NGSIZE,
-    E_DSTRING_OUTRANGE,
-    E_DSTRING_FAIL
+  E_DSTRING_SUCCESS,
+  E_DSTRING_NGPTR,
+  E_DSTRING_NGVAL,
+  E_DSTRING_NALLOC,
+  E_DSTRING_NGSIZE,
+  E_DSTRING_OUTRANGE,
+  E_DSTRING_FAIL
 };
 
 const char *dstring_errname(int err);
 
 #define dstring_error(reason, err) do { \
-    fprintf(stderr, "ERROR: %s: in %s at line %d\n%s", \
-        dstring_errname(err), __FILE__, __LINE__, reason); \
-    fflush(stderr); \
+  fprintf(stderr, "ERROR: %s: in %s at line %d\n%s", \
+          dstring_errname(err), __FILE__, __LINE__, reason); \
+  fflush(stderr); \
 } while (0)
 
 typedef union Dstring Dstring;
 
 union Dstring {
-    struct {
-        char data[23];
-        uint8_t size;
-    } s;
-    struct {
-        char *data;
-        uint64_t size;
-        uint64_t capacity;
-    } l;
+  struct {
+    char data[23];
+    uint8_t size;
+  } s;
+  struct {
+    char *data;
+    uint64_t size;
+    uint64_t capacity;
+  } l;
 };
 
-#define STRING_LONG_MAXCAP          ((UINT64_MAX >> 1) - 1)
-#define STRING_SHORT_MAXCAP         (23)
+#define STRING_LONG_MAXCAP        ((UINT64_MAX >> 1) - 1)
+#define STRING_SHORT_MAXCAP       (23)
 
-#define dstring_is_short(str)        ((str)->s.size >> 7)
-#define dstring_short_size(str)      ((str)->s.size & 0x7f)
+#define dstring_is_short(str)     ((str)->s.size >> 7)
+#define dstring_short_size(str)   ((str)->s.size & 0x7f)
 
 Dstring *dstring_create(void);
 

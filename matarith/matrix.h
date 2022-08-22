@@ -6,9 +6,9 @@
 typedef struct Matrix Matrix;
 
 struct Matrix {
-    int     row;
-    int     col;
-    double  *data;
+  int row;
+  int col;
+  double *data;
 };
 
 #define MATRIX_AT(a, r, c) ( (a)->data[(r) * (a)->col + c] )
@@ -16,25 +16,25 @@ struct Matrix {
 /* == error messages == */
 
 enum {
-    E_MATRIX_SUCCESS,
-    E_MATRIX_NGPTR,
-    E_MATRIX_NGSIZ,
-    E_MATRIX_NEQSIZ,
-    E_MATRIX_NALLOC,
-    E_MATRIX_OUTRANGE,
-    E_MATRIX_NSQR,
-    E_MATRIX_FACFAIL,
-    E_MATRIX_SLVFAIL,
-    E_MATRIX_DIVZERO
+  E_MATRIX_SUCCESS,
+  E_MATRIX_NGPTR,
+  E_MATRIX_NGSIZ,
+  E_MATRIX_NEQSIZ,
+  E_MATRIX_NALLOC,
+  E_MATRIX_OUTRANGE,
+  E_MATRIX_NSQR,
+  E_MATRIX_FACFAIL,
+  E_MATRIX_SLVFAIL,
+  E_MATRIX_DIVZERO
 };
 
 const char *matrix_errname(int err);
 
 #define MATRIX_ERROR(reason, err) do { \
-    fprintf(stderr, "ERROR: %s: in %s at line %d\n%s", \
-        matrix_errname(err), __FILE__, __LINE__, (reason)); \
-    fflush(stdout); \
-    abort(); \
+  fprintf(stderr, "ERROR: %s: in %s at line %d\n%s", \
+          matrix_errname(err), __FILE__, __LINE__, (reason)); \
+  fflush(stdout); \
+  abort(); \
 } while (0)
 
 
