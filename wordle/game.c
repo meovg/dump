@@ -54,56 +54,54 @@ typedef MapOf(int) PoolMap;
 #define KEY_BOT_Y   6
 
 char uppercase(char u) {
-  return (u >= 97 && u <= 122 ? u - 32 : u);
+    return (u >= 97 && u <= 122 ? u - 32 : u);
 }
 
 char lowercase(char u) {
-  return (u >= 65 && u <= 90 ? u + 32 : u);
+    return (u >= 65 && u <= 90 ? u + 32 : u);
 }
 
 /* a sequence of bits are used to mask the color of each letter of guessed word
  * color mask of a letter takes 2 bits
  */
 #define mask_set_color(maskptr, pos, color) \
-  __typeof__(*(maskptr)) color_inv = (color) ^ 3; \
-  *(maskptr) |= ((__typeof__(*(maskptr)))3 << ((pos) << 1)); \
-  *(maskptr) ^= (color_inv << ((pos) << 1))
+    __typeof__(*(maskptr)) color_inv = (color) ^ 3; \
+    *(maskptr) |= ((__typeof__(*(maskptr)))3 << ((pos) << 1)); \
+    *(maskptr) ^= (color_inv << ((pos) << 1))
 
 #define mask_get_color(mask, pos) \
-  (int)(((mask) >> ((pos) << 1)) & (__typeof__(mask))(3))
-
+    (int)(((mask) >> ((pos) << 1)) & (__typeof__(mask))(3))
 
 /* checks whether guessed word is in the word pool using binary search */
 int is_valid_word(const char guess[5], PoolMap *pool) {
-  return map_get(pool, guess) != NULL;
+    return map_get(pool, guess) != NULL;
 }
 
 /* gets color mask based on how the guessed word matches the answer */
 uint16_t word_get_mask(const char guess[5], const char answer[5]) {
-  uint16_t color_mask = 0;
-  int visited_mask = 0;
+    uint16_t color_mask = 0;
+    int visited_mask = 0;
 
-  for (int i = 0; i < 5; i++) {
-    if (answer[i] == guess[i]) {
-      mask_set_color(&color_mask, i, MSK_GREEN);
-      visited_mask |= 1 << i;
+    for (int i = 0; i < 5; i++) {
+        if (answer[i] == guess[i]) {
+            mask_set_color(&color_mask, i, MSK_GREEN);
+            visited_mask |= 1 << i;
+        }
     }
-  }
-
-  for (int i = 0; i < 5; i++) {
-    if ((visited_mask >> i) & 1) {
-      continue;
+    for (int i = 0; i < 5; i++) {
+        if ((visited_mask >> i) & 1) {
+            continue;
+        }
+        for (int j = 0; j < 5; j++) {
+            int tmp = mask_get_color(color_mask, j);
+            if (tmp == MSK_GREY && answer[i] == guess[j]) {
+                mask_set_color(&color_mask, j, MSK_YELLOW);
+                visited_mask |= 1 << i;
+                break;
+            }
+        }
     }
-    for (int j = 0; j < 5; j++) {
-      int tmp = mask_get_color(color_mask, j);
-      if (tmp == MSK_GREY && answer[i] == guess[j]) {
-        mask_set_color(&color_mask, j, MSK_YELLOW);
-        visited_mask |= 1 << i;
-        break;
-      }
-    }
-  }
-  return color_mask;
+    return color_mask;
 }
 
 WORD init_attrs;
@@ -112,56 +110,56 @@ CONSOLE_SCREEN_BUFFER_INFO scrbuf_info;
 
 /* gets initial console cursor & screen buffer info */
 void cons_get_init_info(void) {
-  HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-  GetConsoleScreenBufferInfo(h, &scrbuf_info);
-  GetConsoleCursorInfo(h, &cursor_info);
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    GetConsoleScreenBufferInfo(h, &scrbuf_info);
+    GetConsoleCursorInfo(h, &cursor_info);
 }
 
 void curs_hide(void) {
-  CONSOLE_CURSOR_INFO info;
-  info.dwSize = 100;
-  info.bVisible = FALSE;
-  SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+    CONSOLE_CURSOR_INFO info;
+    info.dwSize = 100;
+    info.bVisible = FALSE;
+    SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
 }
 
 void curs_show(void) {
-  CONSOLE_CURSOR_INFO info;
-  info.dwSize = cursor_info.dwSize;
-  info.bVisible = TRUE;
-  SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
+    CONSOLE_CURSOR_INFO info;
+    info.dwSize = cursor_info.dwSize;
+    info.bVisible = TRUE;
+    SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
 }
 
 /* sets the back/foreground colord of output screen buffer on console */
 void cons_set_color(int fore, int back) {
-  HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(h, &csbi);
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(h, &csbi);
 
-  /* stores the initial text color attributes */
-  init_attrs = csbi.wAttributes;
-  SetConsoleTextAttribute(h, fore | back);
+    /* stores the initial text color attributes */
+    init_attrs = csbi.wAttributes;
+    SetConsoleTextAttribute(h, fore | back);
 }
 
 void cons_reset_color(void) {
-  SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), init_attrs);
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), init_attrs);
 }
 
 void curs_set_pos(int x, int y) {
-  COORD loc = {(short)x, (short)y};
-  SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), loc);
+    COORD loc = {(short)x, (short)y};
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), loc);
 }
 
 COORD curs_get_pos(void) {
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
-  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-  return csbi.dwCursorPosition;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    return csbi.dwCursorPosition;
 }
 
 void cons_write(int x, int y, wchar_t ch, int fore, int back) {
-  curs_set_pos(x, y);
-  cons_set_color(fore, back);
-  printf("%lc", ch);
-  cons_reset_color();
+    curs_set_pos(x, y);
+    cons_set_color(fore, back);
+    printf("%lc", ch);
+    cons_reset_color();
 }
 
 /* draws a square tile
@@ -170,71 +168,72 @@ void cons_write(int x, int y, wchar_t ch, int fore, int back) {
  * note: at the end of the function, the cursor location is (xa, ya)
  */
 void tile_draw(int xa, int ya, int xb, int yb, int fore, int back) {
-  for (int i = xa + 1; i < xb; i++) {
-    for (int j = ya + 1; j < yb; j++) {
-      cons_write(i, j, 0, fore, back);
+    for (int i = xa + 1; i < xb; i++) {
+        for (int j = ya + 1; j < yb; j++) {
+            cons_write(i, j, 0, fore, back);
+        }
     }
-  }
-  for (int i = xa + 1; i < xb; i++) {
-    cons_write(i, ya, W_HOR, fore, back);
-    cons_write(i, yb, W_HOR, fore, back);
-  }
-  for (int i = ya + 1; i < yb; i++) {
-    cons_write(xa, i, W_VER, fore, back);
-    cons_write(xb, i, W_VER, fore, back);
-  }
-  cons_write(xa, ya, W_TOPL, fore, back);
-  cons_write(xa, yb, W_BOTL, fore, back);
-  cons_write(xb, ya, W_TOPR, fore, back);
-  cons_write(xb, yb, W_BOTR, fore, back);
-  curs_set_pos(xa, ya);
+    for (int i = xa + 1; i < xb; i++) {
+        cons_write(i, ya, W_HOR, fore, back);
+        cons_write(i, yb, W_HOR, fore, back);
+    }
+    for (int i = ya + 1; i < yb; i++) {
+        cons_write(xa, i, W_VER, fore, back);
+        cons_write(xb, i, W_VER, fore, back);
+    }
+    cons_write(xa, ya, W_TOPL, fore, back);
+    cons_write(xa, yb, W_BOTL, fore, back);
+    cons_write(xb, ya, W_TOPR, fore, back);
+    cons_write(xb, yb, W_BOTR, fore, back);
+
+    curs_set_pos(xa, ya);
 }
 
 void grid_place(int x, int y, char ch, int fore, int back) {
-  tile_draw(x, y, x + 4, y + 2, fore, back);
-  cons_write(x + 2, y + 1, ch, fore, back);
-  curs_set_pos(x, y);
+    tile_draw(x, y, x + 4, y + 2, fore, back);
+    cons_write(x + 2, y + 1, ch, fore, back);
+    curs_set_pos(x, y);
 }
 
 /* draws the game playing area - a 6x5 board of black tiles */
 void grid_draw(int x, int y) {
-  int ox = x;
-  int oy = y;
+    int ox = x;
+    int oy = y;
 
-  for (int i = 0; i < 6; i++) {
-    ox = x;
-    for (int j = 0; j < 5; j++) {
-      tile_draw(ox, oy, ox + TILE_W - 1, oy + TILE_H - 1, F_WHITE, B_BLACK);
-      ox += TILE_W + 1;
+    for (int i = 0; i < 6; i++) {
+        ox = x;
+        for (int j = 0; j < 5; j++) {
+            tile_draw(ox, oy, ox + TILE_W - 1, oy + TILE_H - 1, F_WHITE, B_BLACK);
+            ox += TILE_W + 1;
+        }
+        oy += TILE_H;
     }
-    oy += TILE_H;
-  }
-  curs_set_pos(x, y);
+    curs_set_pos(x, y);
 }
 
 /* location offsets of 26 letter keys in the keyboard */
 static const size_t keyb_offset_x[] = {
-  KEY_MID_X,              KEY_BOT_X + 4 * KEY_W,  KEY_BOT_X + 2 * KEY_W,  
-  KEY_MID_X + 2 * KEY_W,  KEY_TOP_X + 2 * KEY_W,  KEY_MID_X + 3 * KEY_W,
-  KEY_MID_X + 4 * KEY_W,  KEY_MID_X + 5 * KEY_W,  KEY_TOP_X + 7 * KEY_W,
-  KEY_MID_X + 6 * KEY_W,  KEY_MID_X + 7 * KEY_W,  KEY_MID_X + 8 * KEY_W,
-  KEY_BOT_X + 6 * KEY_W,  KEY_BOT_X + 5 * KEY_W,  KEY_TOP_X + 8 * KEY_W,
-  KEY_TOP_X + 9 * KEY_W,  KEY_TOP_X,              KEY_TOP_X + 3 * KEY_W,
-  KEY_MID_X +     KEY_W,  KEY_TOP_X + 4 * KEY_W,  KEY_TOP_X + 6 * KEY_W,
-  KEY_BOT_X + 3 * KEY_W,  KEY_TOP_X +     KEY_W,  KEY_BOT_X +     KEY_W,
-  KEY_TOP_X + 5 * KEY_W,  KEY_BOT_X 
+    KEY_MID_X,              KEY_BOT_X + 4 * KEY_W,  KEY_BOT_X + 2 * KEY_W,  
+    KEY_MID_X + 2 * KEY_W,  KEY_TOP_X + 2 * KEY_W,  KEY_MID_X + 3 * KEY_W,
+    KEY_MID_X + 4 * KEY_W,  KEY_MID_X + 5 * KEY_W,  KEY_TOP_X + 7 * KEY_W,
+    KEY_MID_X + 6 * KEY_W,  KEY_MID_X + 7 * KEY_W,  KEY_MID_X + 8 * KEY_W,
+    KEY_BOT_X + 6 * KEY_W,  KEY_BOT_X + 5 * KEY_W,  KEY_TOP_X + 8 * KEY_W,
+    KEY_TOP_X + 9 * KEY_W,  KEY_TOP_X,              KEY_TOP_X + 3 * KEY_W,
+    KEY_MID_X +     KEY_W,  KEY_TOP_X + 4 * KEY_W,  KEY_TOP_X + 6 * KEY_W,
+    KEY_BOT_X + 3 * KEY_W,  KEY_TOP_X +     KEY_W,  KEY_BOT_X +     KEY_W,
+    KEY_TOP_X + 5 * KEY_W,  KEY_BOT_X 
 };
 
 static const size_t keyb_offset_y[] = {
-  KEY_MID_Y,  KEY_BOT_Y,  KEY_BOT_Y,  
-  KEY_MID_Y,  KEY_TOP_Y,  KEY_MID_Y,
-  KEY_MID_Y,  KEY_MID_Y,  KEY_TOP_Y,
-  KEY_MID_Y,  KEY_MID_Y,  KEY_MID_Y,
-  KEY_BOT_Y,  KEY_BOT_Y,  KEY_TOP_Y,
-  KEY_TOP_Y,  KEY_TOP_Y,  KEY_TOP_Y,
-  KEY_MID_Y,  KEY_TOP_Y,  KEY_TOP_Y,
-  KEY_BOT_Y,  KEY_TOP_Y,  KEY_BOT_Y,
-  KEY_TOP_Y,  KEY_BOT_Y   
+    KEY_MID_Y,  KEY_BOT_Y,  KEY_BOT_Y,  
+    KEY_MID_Y,  KEY_TOP_Y,  KEY_MID_Y,
+    KEY_MID_Y,  KEY_MID_Y,  KEY_TOP_Y,
+    KEY_MID_Y,  KEY_MID_Y,  KEY_MID_Y,
+    KEY_BOT_Y,  KEY_BOT_Y,  KEY_TOP_Y,
+    KEY_TOP_Y,  KEY_TOP_Y,  KEY_TOP_Y,
+    KEY_MID_Y,  KEY_TOP_Y,  KEY_TOP_Y,
+    KEY_BOT_Y,  KEY_TOP_Y,  KEY_BOT_Y,
+    KEY_TOP_Y,  KEY_BOT_Y   
 };
 
 /* stores the color mask of 26 characters in the alphabet to color the keyboard
@@ -243,144 +242,144 @@ static const size_t keyb_offset_y[] = {
 uint64_t keyb_color_mask;
 
 void keyb_place(int x, int y, char ch, int fore, int back) {
-  tile_draw(x, y, x + 2, y + 2, fore, back);
-  cons_write(x + 1, y + 1, ch, fore, back);
-  curs_set_pos(x, y);
+    tile_draw(x, y, x + 2, y + 2, fore, back);
+    cons_write(x + 1, y + 1, ch, fore, back);
+    curs_set_pos(x, y);
 }
 
 /* draws an onscreen keyboard starting at (x, y) */
 void keyb_draw(int x, int y) {
-  for (int i = 0; i < 26; i++) {
-    keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], i + 'A', F_WHITE, B_BLACK);
-  }
+    for (int i = 0; i < 26; i++) {
+        keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], i + 'A', F_WHITE, B_BLACK);
+    }
 }
 
 /* recolors a tile in the onscreen keyboard */
 void keyb_recolor_tile(int x, int y, char ch, int color) {
-  int i = ch - 'A';
+    int i = ch - 'A';
 
-  switch (mask_get_color(keyb_color_mask, i)) {
-    int mask;
-  case MSK_GREEN:
-    break;
-  case MSK_YELLOW:
-    if (color == B_GREEN) {
-      keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], ch, F_WHITE, B_GREEN);
-      mask_set_color(&keyb_color_mask, i, MSK_GREEN);
+    switch (mask_get_color(keyb_color_mask, i)) {
+        int mask;
+    case MSK_GREEN:
+        break;
+    case MSK_YELLOW:
+        if (color == B_GREEN) {
+            keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], ch, F_WHITE, B_GREEN);
+            mask_set_color(&keyb_color_mask, i, MSK_GREEN);
+        }
+        break;
+    default:
+        mask = (color == B_GREEN ? MSK_GREEN
+            : (color == B_YELLOW ? MSK_YELLOW 
+            : MSK_GREY));
+        keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], ch, F_WHITE, color);
+        mask_set_color(&keyb_color_mask, i, mask);
     }
-    break;
-  default:
-    mask = (color == B_GREEN ? MSK_GREEN
-      : (color == B_YELLOW ? MSK_YELLOW 
-      : MSK_GREY));
-    keyb_place(x + keyb_offset_x[i], y + keyb_offset_y[i], ch, F_WHITE, color);
-    mask_set_color(&keyb_color_mask, i, mask);
-  }
 }
 
 void gameplay(const char answer[5], PoolMap *pool) {
-  COORD loc = curs_get_pos();
+    COORD loc = curs_get_pos();
 
-  int grid_start_row = loc.Y;
-  int keyb_start_row = loc.Y + 6 * TILE_H + 1;
-  grid_draw(0, grid_start_row);
-  keyb_draw(0, keyb_start_row);
+    int grid_start_row = loc.Y;
+    int keyb_start_row = loc.Y + 6 * TILE_H + 1;
+    grid_draw(0, grid_start_row);
+    keyb_draw(0, keyb_start_row);
 
-  uint16_t mask = 0;
-  char guess[6] = {[5] = '\0'};
-  int x = loc.X;
-  int y = loc.Y;
-  int i;
+    uint16_t mask = 0;
+    char guess[6] = {[5] = '\0'};
+    int x = loc.X;
+    int y = loc.Y;
+    int i;
 
-  for (i = 1; i <= 6; i++) {
-    int pos = 0;
+    for (i = 1; i <= 6; i++) {
+        int pos = 0;
 
-    for (;;) {
-      if (kbhit()) {
-        char ch = lowercase((char)getch());
+        for (;;) {
+            if (kbhit()) {
+                char ch = lowercase((char)getch());
 
-        if (ch == KB_ENTER && pos == 5 && is_valid_word(guess, pool)) {
-          break;
-        } else if (ch == KB_BACKS && pos > 0) {
-          grid_place(x - TILE_W - 1, y, 0, F_WHITE, B_BLACK);
-          x -= TILE_W + 1; 
-          guess[--pos] = '\0';
-        } else if (ch >= 'a' && ch <= 'z' && pos < 5) {
-          grid_place(x, y, uppercase(ch), F_WHITE, B_BLACK);
-          x += TILE_W + 1;
-          guess[pos++] = ch;
+                if (ch == KB_ENTER && pos == 5 && is_valid_word(guess, pool)) {
+                    break;
+                } else if (ch == KB_BACKS && pos > 0) {
+                    grid_place(x - TILE_W - 1, y, 0, F_WHITE, B_BLACK);
+                    x -= TILE_W + 1; 
+                    guess[--pos] = '\0';
+                } else if (ch >= 'a' && ch <= 'z' && pos < 5) {
+                    grid_place(x, y, uppercase(ch), F_WHITE, B_BLACK);
+                    x += TILE_W + 1;
+                    guess[pos++] = ch;
+                }
+            }
         }
-      }
-    }
 
         /* moves the cursor to the first tile of the row */
-    x = 0;
-    mask = word_get_mask(guess, answer);
+        x = 0;
+        mask = word_get_mask(guess, answer);
 
-    int tile_color;
-    for (int j = 0; j < 5; j++) {
-      switch (mask_get_color(mask, j)) {
-      case MSK_GREEN:
-        tile_color = B_GREEN; break;
-      case MSK_YELLOW:
-        tile_color = B_YELLOW; break;
-      default:
-        tile_color = B_GREY; 
-      }
-      grid_place(x, y, uppercase(guess[j]), F_WHITE, tile_color);
-      keyb_recolor_tile(0, keyb_start_row, uppercase(guess[j]), tile_color);
-      x += TILE_W + 1;
+        int tile_color;
+        for (int j = 0; j < 5; j++) {
+            switch (mask_get_color(mask, j)) {
+            case MSK_GREEN:
+                tile_color = B_GREEN; break;
+            case MSK_YELLOW:
+                tile_color = B_YELLOW; break;
+            default:
+                tile_color = B_GREY; 
+            }
+            grid_place(x, y, uppercase(guess[j]), F_WHITE, tile_color);
+            keyb_recolor_tile(0, keyb_start_row, uppercase(guess[j]), tile_color);
+            x += TILE_W + 1;
+        }
+
+        if (mask == MSK_WIN) {
+            break;
+        }
+
+        x = 0;
+        y += TILE_H;
     }
-
-    if (mask == MSK_WIN) {
-      break;
-    }
-
-    x = 0;
-    y += TILE_H;
-  }
 
     /* game is over, moves the cursor to the end of the playing area */
-  int message_row = keyb_start_row + 3 * KEY_H + 1;
-  curs_set_pos(0, message_row);
-  if (mask == MSK_WIN) {
-    printf("Solved after %d guess(es)\n", i);
-  } else {
-    printf("The answer is %s\n", answer);
-  }
+    int message_row = keyb_start_row + 3 * KEY_H + 1;
+    curs_set_pos(0, message_row);
+    if (mask == MSK_WIN) {
+        printf("Solved after %d guess(es)\n", i);
+    } else {
+        printf("The answer is %s\n", answer);
+    }
 
-  printf("Press any key to exit");
-  getch();
-  fflush(stdout);
+    printf("Press any key to exit");
+    getch();
+    fflush(stdout);
 }
 
 void import_words(const char *file_name, PoolMap *pool) {
-  FILE *f = fopen(file_name, "r");
+    FILE *f = fopen(file_name, "r");
 
-  char token[7] = {[6] = '\0'};
-  while (fgets(token, 7, f)) {
-    token[5] = '\0';
-    map_set(pool, token, 0);
-  }
+    char token[7] = {[6] = '\0'};
+    while (fgets(token, 7, f)) {
+        token[5] = '\0';
+        map_set(pool, token, 0);
+    }
 
-  fclose(f);
+    fclose(f);
 }
 
 int main(void) {
-  cons_get_init_info();
-  curs_hide();
+    cons_get_init_info();
+    curs_hide();
 
-  PoolMap pool;
-  map_init(&pool);
+    PoolMap pool;
+    map_init(&pool);
 
-  import_words("answers.txt", &pool);
-  const char *answer = map_rand(&pool)->key;
-  import_words("words.txt", &pool);
+    import_words("answers.txt", &pool);
+    const char *answer = map_rand(&pool)->key;
+    import_words("words.txt", &pool);
 
-  gameplay(answer, &pool);
+    gameplay(answer, &pool);
 
-  map_clear(&pool);
-  curs_show();
+    map_clear(&pool);
+    curs_show();
 
-  return 0;
+    return 0;
 }
