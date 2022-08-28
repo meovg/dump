@@ -6,8 +6,8 @@ RM = del
 
 default: $(TARGET)
 
-$(TARGET): map.o game.o
-	$(CC) $(CFLAGS) map.o game.o -o $@
+$(TARGET): dict.o game.o
+	$(CC) $(CFLAGS) dict.o game.o -o $@
 
 run:
 	./$(TARGET)
