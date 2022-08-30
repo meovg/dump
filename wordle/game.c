@@ -330,7 +330,7 @@ void mesg_show(const char *format, ...) {
 
     va_list args;
     va_start(args, format);
-    vsprintf(message, format, args);
+    vsnprintf(message, 50, format, args);
     va_end(args);
 
     cons_set_color(F_WHITE, B_BLACK);
