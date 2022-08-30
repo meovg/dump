@@ -310,9 +310,9 @@ void mesg_draw(void) {
     tile_draw(mesg_st_x, mesg_st_y, mesg_ed_x, mesg_ed_y, F_WHITE, B_BLACK);
 }
 
-#define mesg_line_limit (mesg_ed_x - mesg_st_x - 1)
+#define mesg_line_limit (KEY_W * 10 - 1)
 
-int mesg_line_end(const char *message) {
+int mesg_line_end(const char message[mesg_line_limit]) {
     char *pspace = strrchr(message, ' ');
     char *pnewln = strrchr(message, '\n');
 
