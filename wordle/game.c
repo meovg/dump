@@ -10,10 +10,11 @@
 #include <inttypes.h>
 #include <wchar.h>
 #include <windows.h>
+#include <stdarg.h>
 
 #include "dict.h"
 
-typedef dict_of(int) Pool;
+typedef dict_of(char) Pool;
 
 /* special keyboard code (enter, backspace) */
 #define KB_ENTER    13
@@ -53,6 +54,11 @@ typedef dict_of(int) Pool;
 #define KEY_TOP_Y   0
 #define KEY_MID_Y   3
 #define KEY_BOT_Y   6
+
+char from_keyboard(void) {
+    while (!kbhit());
+    return (char)getch();
+}
 
 char uppercase(char c) {
     return (c >= 97 && c <= 122 ? c - 32 : c);
@@ -203,6 +209,8 @@ void tile_draw(int xa, int ya, int xb, int yb, int fore, int back) {
     curs_set_pos(xa, ya);
 }
 
+int grid_st_x, grid_st_y;
+
 void grid_place(int x, int y, char c, int fore, int back) {
     tile_draw(x, y, x + 4, y + 2, fore, back);
     cons_write(x + 2, y + 1, c, fore, back);
@@ -211,24 +219,22 @@ void grid_place(int x, int y, char c, int fore, int back) {
 }
 
 /* draws the game playing area - a 6x5 board of black tiles */
-void grid_draw(int x, int y) {
-    int cx = x;
-    int cy = y;
+void grid_draw(void) {
+    int cx = grid_st_x;
+    int cy = grid_st_y;
 
     for (int i = 0; i < 6; i++) {
-        cx = x;
+        cx = grid_st_x;
         for (int j = 0; j < 5; j++) {
             tile_draw(cx, cy, cx + TILE_W - 1, cy + TILE_H - 1, F_WHITE, B_BLACK);
             cx += TILE_W + 1;
         }
         cy += TILE_H;
     }
-
-    curs_set_pos(x, y);
 }
 
 /* location offsets of 26 letter keys in the keyboard */
-static const size_t keyb_x[] = {
+static const size_t keys_x[] = {
     KEY_MID_X,              KEY_BOT_X + 4 * KEY_W,  KEY_BOT_X + 2 * KEY_W,  
     KEY_MID_X + 2 * KEY_W,  KEY_TOP_X + 2 * KEY_W,  KEY_MID_X + 3 * KEY_W,
     KEY_MID_X + 4 * KEY_W,  KEY_MID_X + 5 * KEY_W,  KEY_TOP_X + 7 * KEY_W,
@@ -240,7 +246,7 @@ static const size_t keyb_x[] = {
     KEY_TOP_X + 5 * KEY_W,  KEY_BOT_X 
 };
 
-static const size_t keyb_y[] = {
+static const size_t keys_y[] = {
     KEY_MID_Y,  KEY_BOT_Y,  KEY_BOT_Y,  
     KEY_MID_Y,  KEY_TOP_Y,  KEY_MID_Y,
     KEY_MID_Y,  KEY_MID_Y,  KEY_TOP_Y,
@@ -255,51 +261,121 @@ static const size_t keyb_y[] = {
 /* stores the color mask of 26 characters in the alphabet to color the keyboard
  * requires at least 26 * 2 = 52 bits 
  */
-uint64_t keyb_mask;
+uint64_t keys_mask;
 
-void keyb_place(int x, int y, char c, int fore, int back) {
+int keys_st_x, keys_st_y;
+
+void keys_place(int x, int y, char c, int fore, int back) {
     tile_draw(x, y, x + 2, y + 2, fore, back);
     cons_write(x + 1, y + 1, c, fore, back);
     curs_set_pos(x, y);
 }
 
 /* draws an onscreen keyboard starting at (x, y) */
-void keyb_draw(int x, int y) {
+void keys_draw(void) {
     for (int i = 0; i < 26; i++) {
-        keyb_place(x + keyb_x[i], y + keyb_y[i], i + 'A', F_WHITE, B_BLACK);
+        keys_place(keys_st_x + keys_x[i], keys_st_y + keys_y[i], i + 'A', F_WHITE, B_BLACK);
     }
 }
 
 /* recolors a tile in the onscreen keyboard */
-void keyb_recolor_tile(int x, int y, char c, int color) {
+void keys_color_tile(char c, int color) {
     int i = c - 'A';
-    int color_mask;
 
-    switch (mask_get(keyb_mask, i)) {
-    case MSK_GREEN:
-        break;
-    case MSK_YELLOW:
-        if (color == B_GREEN) {
-            keyb_place(x + keyb_x[i], y + keyb_y[i], c, F_WHITE, B_GREEN);
-            mask_set(&keyb_mask, i, MSK_GREEN);
+    switch (mask_get(keys_mask, i)) {
+        case MSK_GREEN: break;
+        case MSK_YELLOW: {
+            if (color == B_GREEN) {
+                keys_place(keys_st_x + keys_x[i], keys_st_y + keys_y[i], c, F_WHITE, B_GREEN);
+                mask_set(&keys_mask, i, MSK_GREEN);
+            }
+            break;
         }
-        break;
-    default:
-        color_mask = (color == B_GREEN ? MSK_GREEN
-            : (color == B_YELLOW ? MSK_YELLOW 
-                : MSK_GREY));
-        keyb_place(x + keyb_x[i], y + keyb_y[i], c, F_WHITE, color);
-        mask_set(&keyb_mask, i, color_mask);
+        default: {
+            int color_mask = (color == B_GREEN ? MSK_GREEN
+                : (color == B_YELLOW ? MSK_YELLOW 
+                    : MSK_GREY));
+            keys_place(keys_st_x + keys_x[i], keys_st_y + keys_y[i], c, F_WHITE, color);
+            mask_set(&keys_mask, i, color_mask);
+        }
     }
+}
+
+int mesg_st_x, mesg_st_y, mesg_ed_x, mesg_ed_y;
+char message[50];
+
+void mesg_draw(void) {
+    mesg_ed_x = mesg_st_x + KEY_W * 10;
+    mesg_ed_y = mesg_st_y + 4;
+    tile_draw(mesg_st_x, mesg_st_y, mesg_ed_x, mesg_ed_y, F_WHITE, B_BLACK);
+}
+
+#define mesg_line_limit (mesg_ed_x - mesg_st_x - 1)
+
+int mesg_line_end(const char *message) {
+    char *pspace = strrchr(message, ' ');
+    char *pnewln = strrchr(message, '\n');
+
+    if (pspace == NULL || pnewln == NULL) {
+        return mesg_line_limit;
+    } else if (pnewln == NULL) {
+        return pspace - message;
+    } else {
+        return pnewln - message;
+    }
+}
+
+void mesg_show(const char *format, ...) {
+    memset(message, 0, 50);
+
+    va_list args;
+    va_start(args, format);
+    vsprintf(message, format, args);
+    va_end(args);
+
+    cons_set_color(F_WHITE, B_BLACK);
+    curs_set_pos(mesg_st_x + 1, mesg_st_y + 1);
+
+    char *line = message;
+    int endpos = mesg_line_end(line);
+    printf("%.*s", endpos, line);
+
+    curs_set_pos(mesg_st_x + 1, mesg_st_y + 2);
+
+    line += endpos + 1;
+    endpos = mesg_line_end(line);
+    printf("%.*s", endpos, line);
+
+    cons_reset_color();
+}
+
+void mesg_clean(void) {
+    memset(message, ' ', 50);
+
+    cons_set_color(F_WHITE, B_BLACK);
+    curs_set_pos(mesg_st_x + 1, mesg_st_y + 1);
+    printf("%.*s", mesg_line_limit, message);
+
+    curs_set_pos(mesg_st_x + 1, mesg_st_y + 2);
+    printf("%.*s", mesg_line_limit, message + mesg_line_limit);
+
+    cons_reset_color();
 }
 
 void gameplay(const char answer[5], Pool *p) {
     COORD loc = curs_get_pos();
 
-    int grid_start_row = loc.Y;
-    int keyb_start_row = loc.Y + 6 * TILE_H + 1;
-    grid_draw(0, grid_start_row);
-    keyb_draw(0, keyb_start_row);
+    grid_st_x = loc.X;
+    grid_st_y = loc.Y;
+    grid_draw();
+
+    keys_st_x = loc.X + 6 * TILE_W + 1;
+    keys_st_y = loc.Y;
+    keys_draw();
+
+    mesg_st_x = keys_st_x;
+    mesg_st_y = loc.Y + 3 * KEY_W + 1;
+    mesg_draw();
 
     uint16_t mask = 0;
     char guess[6] = {[5] = '\0'};
@@ -311,12 +387,15 @@ void gameplay(const char answer[5], Pool *p) {
         int pos = 0;
 
         for (;;) {
-            while (!kbhit());
+            char ch = lowercase(from_keyboard());
+            mesg_clean();
 
-            char ch = lowercase((char)getch());
-
-            if (ch == KB_ENTER && pos == 5 && is_valid_guess(guess, p)) {
-                break;
+            if (ch == KB_ENTER && pos == 5) {
+                if (is_valid_guess(guess, p)) {
+                    break;
+                } else {
+                    mesg_show("Not in the word list");
+                }
             } else if (ch == KB_BACKS && pos > 0) {
                 grid_place(x - TILE_W - 1, y, 0, F_WHITE, B_BLACK);
                 x -= TILE_W + 1; 
@@ -335,13 +414,13 @@ void gameplay(const char answer[5], Pool *p) {
         int tile_color;
         for (int j = 0; j < 5; j++) {
             switch (mask_get(mask, j)) {
-            case MSK_GREEN: tile_color = B_GREEN; break;
-            case MSK_YELLOW: tile_color = B_YELLOW; break;
-            default: tile_color = B_GREY; 
+                case MSK_GREEN: tile_color = B_GREEN; break;
+                case MSK_YELLOW: tile_color = B_YELLOW; break;
+                default: tile_color = B_GREY; 
             }
 
             grid_place(x, y, uppercase(guess[j]), F_WHITE, tile_color);
-            keyb_recolor_tile(0, keyb_start_row, uppercase(guess[j]), tile_color);
+            keys_color_tile(uppercase(guess[j]), tile_color);
             x += TILE_W + 1;
         }
 
@@ -353,19 +432,16 @@ void gameplay(const char answer[5], Pool *p) {
         y += TILE_H;
     }
 
-    /* game is over, moves the cursor to the end of the playing area */
-    int message_row = keyb_start_row + 3 * KEY_H + 1;
-    curs_set_pos(0, message_row);
-
     if (mask == MSK_WIN) {
-        printf("Solved after %d guess(es)\n", i);
+        mesg_show("Solved after %d guess(es)\nPress any key to exit", i);
     } else {
-        printf("The answer is %s\n", answer);
+        mesg_show("The answer is %s\nPress any key to exit", answer);
     }
 
-    printf("Press any key to exit");
     getch();
     fflush(stdout);
+
+    curs_set_pos(0, grid_st_y + 6 * TILE_H);
 }
 
 void import_words(const char *file_name, Pool *p) {
