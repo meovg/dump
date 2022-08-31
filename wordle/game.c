@@ -76,12 +76,12 @@ char lowercase(char c) {
 #define mask_get(mask, pos) \
     (int)(((mask) >> ((pos) << 1)) & (__typeof__(mask))(3))
 
-/* checks whether guessed word is in the word pool using binary search */
+/* check whether guessed word is in the word pool */
 int is_valid_guess(const char guess[5], Pool *p) {
     return dict_get(p, guess) != NULL;
 }
 
-/* gets color mask based on how the guessed word matches the answer */
+/* get color mask based on how the guessed word matches the answer */
 uint16_t check_guess(const char guess[5], const char answer[5]) {
     uint16_t color_mask = 0;
     int vis = 0;
@@ -114,7 +114,7 @@ WORD init_attrs;
 CONSOLE_CURSOR_INFO cursor_info;
 CONSOLE_SCREEN_BUFFER_INFO scrbuf_info;
 
-/* gets initial console cursor & screen buffer info */
+/* get initial console cursor & screen buffer info */
 void cons_get_init_info(void) {
     HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
     GetConsoleScreenBufferInfo(h, &scrbuf_info);
@@ -137,7 +137,7 @@ void curs_show(void) {
     SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &i);
 }
 
-/* sets the back/foreground colord of output screen buffer on console */
+/* set the back/foreground colord of output screen buffer on console */
 void cons_set_color(int fore, int back) {
     HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO i;
@@ -173,9 +173,9 @@ void cons_write(int x, int y, wchar_t c, int fore, int back) {
     cons_reset_color();
 }
 
-/* draws a square tile
-   with (xa, ya), (xb, yb): the coordinates of the top left and bottom right corners
-        (fore, back): fore/background colors of the tile */
+/* draw a square tile with
+   (xa, ya), (xb, yb): the coordinates of the top left and bottom right corners
+   (fore, back): fore/background colors of the tile */
 void tile_draw(int xa, int ya, int xb, int yb, int fore, int back) {
     for (int i = xa + 1; i < xb; i++) {
         for (int j = ya + 1; j < yb; j++) {
@@ -206,7 +206,7 @@ void grid_place(int x, int y, char c, int fore, int back) {
     cons_write(x + 2, y + 1, c, fore, back);
 }
 
-/* draws the game playing area - a 6x5 board of black tiles */
+/* draw the game playing area - a 6x5 board of black tiles */
 void grid_draw(void) {
     int cx = grid_st_x;
     int cy = grid_st_y;
@@ -246,8 +246,7 @@ static const size_t keys_y[] = {
     KEY_TOP_Y,  KEY_BOT_Y
 };
 
-/* stores the color mask of 26 characters in the alphabet to color the keyboard
-   requires at least 26 * 2 = 52 bits */
+/* require 52 bits to store the color mask of 26 keys */
 uint64_t keys_mask;
 
 int keys_st_x, keys_st_y;
@@ -257,14 +256,14 @@ void keys_place(int x, int y, char c, int fore, int back) {
     cons_write(x + 1, y + 1, c, fore, back);
 }
 
-/* draws an onscreen keyboard starting at (x, y) */
+/* draw an onscreen keyboard starting at (x, y) */
 void keys_draw(void) {
     for (int i = 0; i < 26; i++) {
         keys_place(keys_st_x + keys_x[i], keys_st_y + keys_y[i], i + 'A', F_WHITE, B_BLACK);
     }
 }
 
-/* recolors a tile in the onscreen keyboard */
+/* recolor a tile (key) in the onscreen keyboard */
 void keys_color_tile(char c, int color) {
     int i = c - 'A';
 
