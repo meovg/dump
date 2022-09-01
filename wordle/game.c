@@ -10,7 +10,7 @@
 
 #include "dict.h"
 
-typedef dict_of(char) Pool;
+dict_of(char) pool;
 
 /* special keyboard code (enter, backspace) */
 #define KB_ENTER    13
@@ -77,8 +77,8 @@ char lowercase(char c) {
     (int)(((mask) >> ((pos) << 1)) & (__typeof__(mask))(3))
 
 /* check whether guessed word is in the word pool */
-int is_valid_guess(const char guess[5], Pool *p) {
-    return dict_get(p, guess) != NULL;
+int is_valid_guess(const char guess[5]) {
+    return dict_get(&pool, guess) != NULL;
 }
 
 /* get color mask based on how the guessed word matches the answer */
@@ -289,14 +289,14 @@ void keys_color_tile(char c, int color) {
 int tbox_st_x, tbox_st_y, tbox_ed_x, tbox_ed_y;
 char message[50];
 
+int tbox_line_limit = KEY_W * 10 - 1;
+
 /* draw text box at the bottom right of game area */
 void tbox_draw(void) {
     tbox_ed_x = tbox_st_x + KEY_W * 10;
     tbox_ed_y = tbox_st_y + 4;
     tile_draw(tbox_st_x, tbox_st_y, tbox_ed_x, tbox_ed_y, F_WHITE, B_BLACK);
 }
-
-#define tbox_line_limit (KEY_W * 10 - 1)
 
 /* function like strrchr for substrings */
 char *strrchr_(const char *str, size_t len, int c) {
@@ -367,7 +367,7 @@ void tbox_clean(void) {
     cons_reset_color();
 }
 
-void init_screen(void) {
+void init(void) {
     cons_get_init_info();
     curs_hide();
 
@@ -384,10 +384,11 @@ void init_screen(void) {
     tbox_st_x = keys_st_x;
     tbox_st_y = loc.Y + 3 * KEY_W + 1;
     tbox_draw();
+
+    dict_init(&pool);
 }
 
-
-void game(const char answer[5], Pool *p) {
+void game(const char answer[5]) {
     uint16_t mask = 0;
     char guess[6] = {[5] = '\0'};
     int x = grid_st_x;
@@ -405,7 +406,7 @@ void game(const char answer[5], Pool *p) {
             if (ch == KB_ENTER) {
                 if (pos != 5) {
                     tbox_show("Not enough letters");
-                } else if (!is_valid_guess(guess, p)) {
+                } else if (!is_valid_guess(guess)) {
                     tbox_show("Not in word list");
                 } else {
                     break;
@@ -458,36 +459,36 @@ void game(const char answer[5], Pool *p) {
 
     /* read the key and exit without doing anything */
     from_keyboard();
-    /* move the cursor away from the play area */
-    curs_set_pos(0, grid_st_y + 6 * TILE_H);
 }
 
 /* putting word list into the hash table */
-void import_words(const char *file_name, Pool *p) {
+void import_words(const char *file_name) {
     FILE *f = fopen(file_name, "r");
 
     char token[7] = {[6] = '\0'};
     while (fgets(token, 7, f)) {
         token[5] = '\0';
-        dict_set(p, token, 0);
+        dict_set(&pool, token, 0);
     }
 
     fclose(f);
 }
 
-int main(void) {
-    Pool p;
-    dict_init(&p);
-
-    import_words("answers.txt", &p);
-    const char *answer = dict_rand(&p)->key;
-    import_words("words.txt", &p);
-
-    init_screen();
-    game(answer, &p);
-
-    dict_clear(&p);
+void cleanup(void) {
+    dict_clear(&pool);
+    curs_set_pos(0, grid_st_y + 6 * TILE_H);
     curs_show();
+}
+
+int main(void) {
+    atexit(cleanup);
+
+    init();
+    import_words("answers.txt");
+    const char *answer = dict_rand(&pool)->key;
+    import_words("words.txt");
+
+    game(answer);
 
     return 0;
 }
