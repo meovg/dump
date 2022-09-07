@@ -1,12 +1,10 @@
-extern crate time;
-extern crate image;
-
 mod cmd;
 
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::time::Instant;
 use image::GenericImageView;
 use image::imageops::FilterType;
 use cmd::Parser;
@@ -68,10 +66,10 @@ fn main() {
         None => 4.0
     };
 
-    let start = time::precise_time_ns();
+    let start = Instant::now();
     let result = convert_to_ascii(input_name, scale);
     let _ = write_to_file(output_name, &result);
 
-    let tval = (time::precise_time_ns() - start) / 1000000;
-    println!("Completed in: {}ms", tval);
+    let tval = (Instant::now() - start) / 1000000;
+    println!("Completed in: {:?}", tval);
 }

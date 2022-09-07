@@ -1,8 +1,0 @@
-[package]
-name = "im2ascii"
-version = "0.1.0"
-authors = ["Lewis Irvine"]
-
-[dependencies]
-image = "*"
-time = "0.1"
