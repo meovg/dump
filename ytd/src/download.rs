@@ -4,6 +4,8 @@ use std::fs;
 use url::Url;
 use indicatif::{ProgressBar, ProgressStyle};
 
+// wrap the progress bar around a struct that implements Read trait
+// to advance the progress bar as the data is being read
 pub struct Downloader<'a, R> {
     reader: R,
     progress_bar: &'a ProgressBar,

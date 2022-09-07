@@ -34,7 +34,7 @@ pub fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
 }
 
 pub fn get_video_title(video_info: &serde_json::Value) -> anyhow::Result<&str> {
-    Ok(video_info["videoDetails"]["title"].as_str().unwrap_or(""))
+    Ok(video_info["videoDetails"]["title"].as_str().unwrap_or("videoplayback"))
 }
 
 pub fn get_video_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> {

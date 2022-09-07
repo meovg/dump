@@ -21,17 +21,48 @@ struct Flags {
 fn main() -> anyhow::Result<()> {
     let args = Flags::parse();
 
-    let id = fetcher::get_video_id(&args.url)?;
-    let info = fetcher::get_video_info(&id)?;
-    let title = fetcher::get_video_title(&info)?;
+    let video_id = match fetcher::get_video_id(&args.url) {
+        Err(err) => {
+            println!("Cannot parse the YouTube video ID: {:?}", err);
+            return Ok(()); // i'm scared of panics
+        }
+        Ok(id) => id,
+    };
 
+    let video_info = match fetcher::get_video_info(&video_id) {
+        Err(err) => {
+            println!(
+"Cannot retrieve video info for download. Possibly the video no longer exists, is restricted\n\
+or YouTube API has updated beyond the current method of gathering info\n {:?}", err);
+            return Ok(());
+        }
+        Ok(info) => info,
+    };
+
+    let title = fetcher::get_video_title(&video_info)?;
+
+    // alter video file name so it does not contain illegal characters in windows directory
+    // ref: https://stackoverflow.com/questions/1976007/
     let video_filename = format!("[{}] {}.mp4",
-        id,
-        title.trim().replace(&['|', '\'', '\"', '\\', '/', '?', '*'][..], r#"--"#)
+        video_id,
+        title.trim().replace(&['<', '>',  '|', '\'', '\"', '\\', '/', '?', '*'][..], r#"--"#)
     );
 
-    let link = fetcher::get_video_download_url(&info)?;
-    let video_pathbuf = download::download(link, &video_filename)?;
+    let video_link = match fetcher::get_video_download_url(&video_info) {
+        Err(err) => {
+            println!("Cannot find a suitable video stream to download: {:?}", err);
+            return Ok(());
+        }
+        Ok(link) => link,
+    };
+
+    let video_pathbuf = match download::download(video_link, &video_filename) {
+        Err(err) => {
+            println!("Problem occured. Video download is halted: {:?}", err);
+            return Ok(());
+        }
+        Ok(vid_pb) => vid_pb,
+    };
 
     let video_file = video_pathbuf.as_path();
 
