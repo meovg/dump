@@ -48,13 +48,14 @@ fn main() {
 
     let video_link = match fetcher::get_video_download_url(&video_info) {
         Err(err) => {
-            println!("Cannot find a suitable video stream to download: [{:?}]", err);
+            println!("There's problem getting download link. Aborted.\n[{:?}]", err);
             return;
         }
         Ok("") => {
             println!(
                 "Cannot get the direct video URL.\nThe video may be restricted, deleted, \
-                or the YouTube API has been updated beyond this method of getting URL.");
+                or the YouTube API has been updated beyond this method of getting URL."
+            );
             return;
         }
         Ok(link) => link,

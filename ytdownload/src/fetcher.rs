@@ -57,11 +57,7 @@ pub fn get_video_download_url(video_info: &serde_json::Value) -> anyhow::Result<
     let mut last_vq = "".to_string();
     let mut last_aq = "".to_string();
 
-    fn is_better_quality(
-        qualities: &[&str],
-        this_quality: &str,
-        last_quality: &str
-    ) -> bool {
+    fn is_better_quality(qualities: &[&str], this_quality: &str, last_quality: &str) -> bool {
         let last_quality_index = qualities.iter()
             .position(|&x| x == last_quality).unwrap();
 
