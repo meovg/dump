@@ -4,7 +4,6 @@ use std::fs;
 
 mod download;
 mod fetcher;
-mod cmd;
 
 #[derive(Parser)]
 struct Flags {
@@ -23,7 +22,7 @@ fn main() {
 
     let video_id = match fetcher::get_video_id(&args.url) {
         Err(err) => {
-            println!("Cannot parse the YouTube video ID: [{:?}]", err);
+            println!("Cannot parse the YouTube video ID:\n[{:?}]", err);
             return; // i'm scared of panics
         }
         Ok(id) => id,
@@ -31,7 +30,7 @@ fn main() {
 
     let video_info = match fetcher::get_video_info(&video_id) {
         Err(err) => {
-            println!("Cannot request YouTube for video info: [{:?}]", err);
+            println!("Cannot request YouTube for video info.\n[{:?}]", err);
             return;
         }
         Ok(info) => info,
@@ -63,7 +62,7 @@ fn main() {
 
     let video_pathbuf = match download::download(video_link, &video_filename) {
         Err(err) => {
-            println!("Problem occured. Video download is halted: [{:?}]", err);
+            println!("Problem occured. Video download is halted\n[{:?}]", err);
             return;
         }
         Ok(vid_pb) => vid_pb,
@@ -79,8 +78,14 @@ fn main() {
         let audio_filename = video_filename.trim().replace("mp4", &args.audiofmt);
         let audio_file = Path::new(&audio_filename);
 
-        cmd::save_audio(video_file, audio_file);
-        fs::remove_file(&video_file).unwrap();
+        download::save_audio(video_file, audio_file);
+        match fs::remove_file(&video_file) {
+            Err(err) => {
+                println!("Cannot delete the base video file.\n\
+                    Please delete it yourself if not needed.\n[{:?}]", err);
+            }
+            Ok(_) => (),
+        }
     }
 
     println!("Download complete");
