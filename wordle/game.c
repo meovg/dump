@@ -52,20 +52,17 @@ dict_of(char) pool;
 #define KEY_BOT_Y   6
 
 // get keypress and return the character 
-char from_keyboard(void)
-{
+char from_keyboard(void) {
     while (!kbhit());
     return (char)getch();
 }
 
 // getting uppercase and lowercase of characters
-char uppercase(char c)
-{
+char uppercase(char c) {
     return (c >= 97 && c <= 122 ? c - 32 : c);
 }
 
-char lowercase(char c)
-{
+char lowercase(char c) {
     return (c >= 65 && c <= 90 ? c + 32 : c);
 }
 
@@ -84,14 +81,12 @@ char lowercase(char c)
     (int)(((mask) >> ((pos) << 1)) & (__typeof__(mask))(3))
 
 // check whether guessed word is in the word pool 
-int is_valid_guess(const char guess[5])
-{
+int is_valid_guess(const char guess[5]) {
     return dict_get(&pool, guess) != NULL;
 }
 
 // get color mask based on how the guessed word matches the answer
-uint16_t check_guess(const char guess[5], const char answer[5])
-{
+uint16_t check_guess(const char guess[5], const char answer[5]) {
     uint16_t color_mask = 0;
 
     // used to mark "colored" positions in guessed words
@@ -127,8 +122,7 @@ CONSOLE_CURSOR_INFO cursor_info;
 CONSOLE_SCREEN_BUFFER_INFO scrbuf_info;
 
 // get initial console cursor & screen buffer info
-void screen_get_original_state(void)
-{
+void screen_get_original_state(void) {
     HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
 
     GetConsoleScreenBufferInfo(h, &scrbuf_info);
@@ -138,19 +132,16 @@ void screen_get_original_state(void)
 }
 
 // set the back/foreground color of output screen buffer on console 
-void screen_set_color(int fore, int back)
-{
+void screen_set_color(int fore, int back) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), fore | back);
 }
 
-void screen_reset_color(void)
-{
+void screen_reset_color(void) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), init_attrs);
 }
 
 // hide / show the cursor (actually return it to the state before the program starts)
-void cursor_hide(void)
-{
+void cursor_hide(void) {
     CONSOLE_CURSOR_INFO i;
     i.dwSize = 100;
     i.bVisible = FALSE;
@@ -158,8 +149,7 @@ void cursor_hide(void)
     SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &i);
 }
 
-void cursor_show(void)
-{
+void cursor_show(void) {
     CONSOLE_CURSOR_INFO i;
     i.dwSize = cursor_info.dwSize;
     i.bVisible = TRUE;
@@ -168,15 +158,13 @@ void cursor_show(void)
 }
 
 // move the cursor to some location in the console screen
-void cursor_move(int x, int y)
-{
+void cursor_move(int x, int y) {
     COORD loc = {x, y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), loc);
 }
 
 // write a wchar_t character to the console with color
-void screen_write_char(int x, int y, wchar_t c)
-{
+void screen_write_char(int x, int y, wchar_t c) {
     cursor_move(x, y);
     // screen_set_color(fore, back); // maybe unnecessary -> DIY
     printf("%lc", c);
@@ -185,8 +173,7 @@ void screen_write_char(int x, int y, wchar_t c)
 
 // draw a square tile with
 // (xa, ya), (xb, yb): the coordinates of the top left and bottom right corners
-void tile_draw(int xa, int ya, int xb, int yb)
-{
+void tile_draw(int xa, int ya, int xb, int yb) {
     for (int i = xa + 1; i < xb; i++) {
         for (int j = ya + 1; j < yb; j++) {
             screen_write_char(i, j, 0);
@@ -212,8 +199,7 @@ void tile_draw(int xa, int ya, int xb, int yb)
 int grid_start_x, grid_start_y;
 
 // place the tile with letter c at (x, y) in screen color (fore, back)
-void grid_place(int x, int y, char c, int fore, int back)
-{
+void grid_place(int x, int y, char c, int fore, int back) {
     screen_set_color(fore, back);
     tile_draw(x, y, x + TILE_W - 1, y + TILE_H - 1);
 
@@ -226,8 +212,7 @@ void grid_place(int x, int y, char c, int fore, int back)
 }
 
 // draw the game playing area - a 6x5 board of black tiles 
-void grid_draw(void)
-{
+void grid_draw(void) {
     int x = grid_start_x;
     int y = grid_start_y;
 
@@ -277,8 +262,7 @@ uint64_t keyboard_mask;
 
 int keyboard_start_x, keyboard_start_y;
 
-void keyboard_place(int x, int y, char c, int fore, int back)
-{
+void keyboard_place(int x, int y, char c, int fore, int back) {
     screen_set_color(fore, back);
 
     // write the character at the center, so it should look like this
@@ -292,8 +276,7 @@ void keyboard_place(int x, int y, char c, int fore, int back)
 }
 
 // draw an onscreen keyboard starting at (x, y) 
-void keyboard_draw(void)
-{
+void keyboard_draw(void) {
     for (int i = 0; i < 26; i++) {
         keyboard_place(
             keyboard_start_x + keyboard_x[i],
@@ -305,8 +288,7 @@ void keyboard_draw(void)
 }
 
 // recolor a tile (key) in the onscreen keyboard 
-void keyboard_color_tile(char c, int color)
-{
+void keyboard_color_tile(char c, int color) {
     int pos = c - 'A';
 
     switch (mask_get(keyboard_mask, pos)) {
@@ -346,8 +328,7 @@ char message[50];
 int textbox_line_limit = KEY_W * 10 - 1;
 
 // draw text box at the bottom right of game area 
-void textbox_draw(void)
-{
+void textbox_draw(void) {
     textbox_ed_x = textbox_start_x + KEY_W * 10;
     textbox_ed_y = textbox_start_y + 4;
 
@@ -357,8 +338,7 @@ void textbox_draw(void)
 }
 
 // function like strrchr for substrings 
-char *strrchr_(const char *str, size_t len, int c)
-{
+char *strrchr_(const char *str, size_t len, int c) {
     char *res = NULL;
 
     while (len-- && *str != '\0') {
@@ -372,8 +352,7 @@ char *strrchr_(const char *str, size_t len, int c)
 
 // find the end of the line (usually right before the last space or newline
 // so that it fits the textbox 
-int textbox_line_end(const char *str)
-{
+int textbox_line_end(const char *str) {
     char *pspace = strrchr_(str, textbox_line_limit, ' ');
     char *pnewln = strrchr_(str, textbox_line_limit, '\n');
 
@@ -387,8 +366,7 @@ int textbox_line_end(const char *str)
 }
 
 // show the text in the textbox
-void textbox_show(const char *format, ...)
-{
+void textbox_show(const char *format, ...) {
     memset(message, 0, 50);
 
     // store the formatted text into a buffer 
@@ -415,8 +393,7 @@ void textbox_show(const char *format, ...)
 }
 
 // clear the textbox
-void textbox_clean(void)
-{
+void textbox_clean(void) {
     memset(message, ' ', 50);
 
     screen_set_color(F_WHITE, B_BLACK);
@@ -431,8 +408,7 @@ void textbox_clean(void)
 
 void cleanup(void);
 
-void init(void)
-{
+void init(void) {
     // remember to call for cleanup before safe exit
     atexit(cleanup);
 
@@ -460,9 +436,7 @@ void init(void)
     dict_init(&pool);
 }
 
-// the actual game
-void game(const char answer[5])
-{
+void game(const char answer[5]) {
     uint16_t mask = 0;
     char guess[6] = {[5] = '\0'};
     int x = grid_start_x;
@@ -540,8 +514,7 @@ void game(const char answer[5])
 }
 
 // putting word list into the pool
-void import_words(const char *file_name)
-{
+void import_words(const char *file_name) {
     FILE *f = fopen(file_name, "r");
 
     if (f == NULL) {
@@ -558,8 +531,7 @@ void import_words(const char *file_name)
     fclose(f);
 }
 
-void cleanup(void)
-{
+void cleanup(void) {
     dict_clear(&pool);
 
     // move the cursor away from the game area
@@ -568,9 +540,9 @@ void cleanup(void)
     cursor_show();
 }
 
-int main(void)
-{
+int main(void) {
     init();
+
     import_words("answers.txt");
     const char *answer = dict_rand(&pool)->key;
     import_words("words.txt");
