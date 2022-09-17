@@ -17,8 +17,14 @@ struct Flags {
     #[clap(long="audio", short='a', help="Option to download and convert to audio file")]
     toaudio: bool,
 
-    #[clap(long="format", short='f', help="Audio file format", default_value="mp3")]
+    #[clap(long="audiofmt", short='f', help="Audio file format", default_value="mp3")]
     audiofmt: String,
+
+    #[clap(long="bestvideo", help="Choose the best video quality")]
+    bestvq: bool,
+
+    #[clap(long="bestaudio", help="Choose the best audio quality")]
+    bestaq: bool,
 }
 
 fn main() {
@@ -52,7 +58,14 @@ fn main() {
         title.trim().replace(&['<', '>',  '|', '\'', '\"', '\\', '/', '?', '*'][..], r#"--"#)
     );
 
-    let video_link = match get_video_download_url(&video_info) {
+    let need_best_video = if args.toaudio { false } else { args.bestvq };
+    let need_best_audio = args.bestaq;
+
+    let video_link = match get_video_download_url(
+        &video_info,
+        need_best_video,
+        need_best_audio) 
+    {
         Err(err) => {
             println!("There's problem getting download link. Aborted.\n[{:?}]", err);
             return;
@@ -98,7 +111,7 @@ fn main() {
     println!("Download complete");
 }
 
-pub fn get_video_id(video_url: &str) -> anyhow::Result<&str> {
+fn get_video_id(video_url: &str) -> anyhow::Result<&str> {
     // not going to be specific on several watch url cases
     // just the 'youtube.com/watch?v=' and 'youtu.be/' only 
     let re = regex::Regex::new(
@@ -109,21 +122,23 @@ pub fn get_video_id(video_url: &str) -> anyhow::Result<&str> {
     Ok(id.as_str())
 }
 
-pub fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
+fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
     // shamefully steal the player's access key from InnerTube
     // (found at https://github.com/tombulled/innertube/blob/main/innertube/config.py)
     let player_url = "https://youtubei.googleapis.com/youtubei/v1/player\
         ?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 
-    let request = ureq::post(&player_url).send_json(ureq::json!({
-        "videoId": video_id,
-        "context": {
-            "client": {
-                "clientName": "ANDROID",
-                "clientVersion": "16.02"
+    let request = ureq::post(&player_url).send_json(
+        ureq::json!({
+            "videoId": video_id,
+            "context": {
+                "client": {
+                    "clientName": "ANDROID",
+                    "clientVersion": "16.02"
+                }
             }
-        }
-    }))?;
+        })
+    )?;
 
     let respond = request.into_string()?;
     let video_info: serde_json::Value = serde_json::from_str(respond.as_str())?;
@@ -131,11 +146,16 @@ pub fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
     Ok(video_info)
 }
 
-pub fn get_video_title(video_info: &serde_json::Value) -> anyhow::Result<&str> {
+fn get_video_title(video_info: &serde_json::Value) -> anyhow::Result<&str> {
     Ok(video_info["videoDetails"]["title"].as_str().unwrap_or("videoplayback"))
 }
 
-pub fn get_video_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> {
+fn get_video_download_url(
+    video_info: &serde_json::Value,
+    need_best_video: bool,
+    need_best_audio: bool,
+) -> anyhow::Result<&str> {
+
     let formats = match video_info["streamingData"]["formats"].as_array() {
         Some(t) => t,
         None => return Ok(""),
@@ -163,40 +183,77 @@ pub fn get_video_download_url(video_info: &serde_json::Value) -> anyhow::Result<
         qualities.iter().skip(last_quality_index + 1).any(|&x| x == this_quality)
     }
 
-    // find not-so-horrible stream format
-    for format in formats.iter().chain(adaptive_formats) {
-        let this_vq = format["quality"].as_str().unwrap_or("");
-        let this_aq = format["audioQuality"].as_str().unwrap_or("");
+    // select the stream with highest video quality possible
+    if need_best_video && !need_best_audio {
+        for format in formats.iter().chain(adaptive_formats) {
+            if !format["mimeType"].to_string().contains("video/") {
+                continue;
+            }
 
-        let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
-            || is_better_quality(&aq, this_aq, last_aq.as_str());
+            let this_vq = format["quality"].as_str().unwrap_or("");
+            let is_better_vq = (
+                last_vq.is_empty() && !this_vq.is_empty())
+                || is_better_quality(&vq, this_vq, last_vq.as_str()
+            );
 
-        let is_better_vq = (last_vq.is_empty() && !this_vq.is_empty())
-            || is_better_quality(&vq, this_vq, last_vq.as_str());
+            if is_better_vq {
+                target_url = format["url"].as_str().unwrap_or("");
+                last_vq = String::from(this_vq);
+            }
+        }
+    // with highest audio quality possible
+    } else if need_best_audio && !need_best_video {
+        for format in formats.iter().chain(adaptive_formats) {
+            if !format["mimeType"].to_string().contains("audio/") {
+                continue;
+            }
 
-        let is_same_or_better_aq = is_better_aq || (this_aq == last_aq);
-        let is_same_or_better_vq = is_better_vq || (this_vq == last_vq);
+            let this_aq = format["audioQuality"].as_str().unwrap_or("");
+            let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
+                || is_better_quality(&aq, this_aq, last_aq.as_str());
 
-        let is_better_quality = (is_better_aq && is_same_or_better_vq)
-            || (is_better_vq && is_same_or_better_aq);
+            if is_better_aq {
+                target_url = format["url"].as_str().unwrap_or("");
+                last_aq = String::from(this_aq);
+            }
+        }
+    // with the least shitty combination possible
+    } else {
+        for format in formats.iter().chain(adaptive_formats) {
+            if !format["mimeType"].to_string().contains("video/") {
+                continue;
+            }
 
-        if format["mimeType"].to_string().contains("video/")
-            && format["quality"] != ureq::json!(null)
-            && last_vq.is_empty() && !this_vq.is_empty()
-            || is_better_quality
-        {
-            target_url = format["url"].as_str().unwrap_or("");
-            last_vq = String::from(this_vq);
-            last_aq = String::from(this_aq);
+            let this_aq = format["audioQuality"].as_str().unwrap_or("");
+            let this_vq = format["quality"].as_str().unwrap_or("");
+
+            let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
+                || is_better_quality(&aq, this_aq, last_aq.as_str());
+
+            let is_better_vq = (last_vq.is_empty() && !this_vq.is_empty())
+                || is_better_quality(&vq, this_vq, last_vq.as_str());
+
+            let is_same_or_better_aq = is_better_aq || (this_aq == last_aq);
+            let is_same_or_better_vq = is_better_vq || (this_vq == last_vq);
+
+            let is_better_quality = (is_better_aq && is_same_or_better_vq)
+                || (is_better_vq && is_same_or_better_aq);
+
+            if is_better_quality {
+                target_url = format["url"].as_str().unwrap_or("");
+                last_vq = String::from(this_vq);
+                last_aq = String::from(this_aq);
+            }
         }
     }
 
+    // println!("v: {:?}, a: {:?}", last_vq, last_aq);
     Ok(target_url)
 }
 
 // wrap the progress bar around a struct that implements Read trait
 // to advance the progress bar as the data is being read
-pub struct Downloader<'a, R> {
+struct Downloader<'a, R> {
     reader: R,
     progress_bar: &'a ProgressBar,
 }
@@ -210,7 +267,7 @@ impl<R: Read> Read for Downloader<'_, R> {
     }
 }
 
-pub fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
+fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
     let parsed_url = Url::parse(url)?;
     let init_request = ureq::get(parsed_url.as_str()).call()?;
 
@@ -261,7 +318,7 @@ pub fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
     Ok(video_file.to_path_buf())
 }
 
-pub fn save_audio(input_file: &Path, output_file: &Path) {
+fn save_audio(input_file: &Path, output_file: &Path) {
     Command::new("ffmpeg")
         .arg("-i").arg(input_file)
         .arg("-ar").arg("44100")
