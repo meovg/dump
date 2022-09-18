@@ -22,9 +22,6 @@ struct Flags {
 
     #[clap(long="bestvideo", help="Choose the best video quality")]
     bestvq: bool,
-
-    #[clap(long="bestaudio", help="Choose the best audio quality")]
-    bestaq: bool,
 }
 
 fn main() {
@@ -46,65 +43,98 @@ fn main() {
         Ok(info) => info,
     };
 
-    let title = if args.filename.is_empty() {
+
+    let title = (if args.filename.is_empty() {
         format!("[{}] {}", video_id, get_video_title(&video_info).unwrap())
     } else {
         args.filename
-    };
-
+    })
     // alter video file name so it does not contain illegal characters in windows directory
     // ref: https://stackoverflow.com/questions/1976007/
-    let video_filename = format!("{}.mp4",
-        title.trim().replace(&['<', '>',  '|', '\'', '\"', '\\', '/', '?', '*'][..], r#"--"#)
-    );
+    .trim().replace(&['<', '>',  '|', '\'', '\"', '\\', '/', '?', '*'][..], r#"--"#);
 
     let need_best_video = if args.toaudio { false } else { args.bestvq };
-    let need_best_audio = args.bestaq;
 
-    let video_link = match get_video_download_url(
-        &video_info,
-        need_best_video,
-        need_best_audio) 
-    {
+    let direct_url = match get_download_url(&video_info, need_best_video) {
         Err(err) => {
             println!("There's problem getting download link. Aborted.\n[{:?}]", err);
             return;
         }
-        Ok("") => {
-            println!(
-                "Cannot get the direct video URL.\nThe video may be restricted, deleted, \
-                or the YouTube API has been updated beyond this method of getting URL."
-            );
-            return;
-        }
-        Ok(link) => link,
+        Ok(url) => url,
     };
 
-    let video_pathbuf = match download(video_link, &video_filename) {
-        Err(err) => {
-            println!("Problem occured. Video download is halted\n[{:?}]", err);
-            return;
-        }
-        Ok(vid_pb) => vid_pb,
-    };
+    if direct_url.vid.is_empty() || (need_best_video && direct_url.aud.is_empty()) {
+        println!("Cannot get the direct video URL.\nThe video may be restricted, deleted, \
+            or the YouTube API has been updated beyond this method of getting URL.");
+        return;
+    }
 
-    let video_file = video_pathbuf.as_path();
+    // if the user needs best video quality, download a separate adaptive video format and
+    // the standard video stream for audio, then merge two tracks (somehow) into one
+    // note that one cannot pick the best video quality and only need audio track
 
-    // option to download audio file
-    // use ffmpeg to convert to audio file and delete the original video file
-    if args.toaudio {
-        println!("Converting to audio...");
+    if need_best_video {
+        let video_filename = format!("{}-v.mp4", title);
+        let audio_filename = format!("{}-a.mp4", title);
 
-        let audio_filename = video_filename.trim().replace("mp4", &args.audiofmt);
-        let audio_file = Path::new(&audio_filename);
-
-        save_audio(video_file, audio_file);
-        match fs::remove_file(&video_file) {
+        // download the video track
+        println!("Getting stream with video");
+        let video_pathbuf = match download(direct_url.vid, &video_filename) {
             Err(err) => {
-                println!("Cannot delete the base video file.\n\
-                    Please delete it yourself if not needed.\n[{:?}]", err);
+                println!("Problem occured. Video download is halted\n[{:?}]", err);
+                return;
+            }
+            Ok(vid_pb) => vid_pb,
+        };
+
+        // download the video containing audio track...
+        println!("Getting stream with audio");
+        let audio_pathbuf = match download(direct_url.aud, &audio_filename) {
+            Err(err) => {
+                println!("Problem occured. Video download is halted\n[{:?}]", err);
+                return;
+            }
+            Ok(aud_pb) => aud_pb,
+        };
+
+        let result_filename = format!("{}.mp4", title);
+        let result_path = Path::new(&result_filename);
+
+        println!("Linking video and audio tracks into a complete video");
+        match link_tracks(video_pathbuf.as_path(), audio_pathbuf.as_path(), result_path) {
+            Err(err) => {
+                println!("There's a problem linking the video tracks. Aborting\n[{:?}]", err);
+                return;
             }
             Ok(_) => (),
+        }
+    } else {
+        let video_filename = format!("{}.mp4", title);
+        let video_pathbuf = match download(direct_url.vid, &video_filename) {
+            Err(err) => {
+                println!("Problem occured. Video download is halted\n[{:?}]", err);
+                return;
+            }
+            Ok(vid_pb) => vid_pb,
+        };
+
+        let video_file = video_pathbuf.as_path();
+
+        // option to download audio file
+        // use ffmpeg to convert to audio file and delete the original video file
+        if args.toaudio {
+            println!("Converting to audio...");
+
+            let audio_filename = video_filename.trim().replace("mp4", &args.audiofmt);
+            let audio_file = Path::new(&audio_filename);
+
+            match save_audio(video_file, audio_file) {
+                Err(err) => {
+                    println!("Cannot delete the base video file.\n\
+                        Please delete it yourself if not needed.\n[{:?}]", err);
+                }
+                Ok(_) => (),
+            }
         }
     }
 
@@ -150,105 +180,110 @@ fn get_video_title(video_info: &serde_json::Value) -> anyhow::Result<&str> {
     Ok(video_info["videoDetails"]["title"].as_str().unwrap_or("videoplayback"))
 }
 
-fn get_video_download_url(
+// mfw anyhow crate does not support multiple return values
+struct DownloadUrl<'a> {
+    vid: &'a str,
+    aud: &'a str,
+}
+
+fn get_download_url(
     video_info: &serde_json::Value,
     need_best_video: bool,
-    need_best_audio: bool,
-) -> anyhow::Result<&str> {
+) -> anyhow::Result<DownloadUrl> {
+    if need_best_video {
+        Ok(DownloadUrl {
+            vid: get_best_video_download_url(video_info).unwrap_or(""),
+            aud: get_std_download_url(video_info).unwrap_or(""),
+        })
+    } else {
+        Ok(DownloadUrl {
+            vid: get_std_download_url(video_info).unwrap_or(""),
+            aud: "",
+        })
+    }
+}
 
-    let formats = match video_info["streamingData"]["formats"].as_array() {
-        Some(t) => t,
-        None => return Ok(""),
-    };
-
-    let adaptive_formats = match video_info["streamingData"]["adaptiveFormats"].as_array() {
+// attempt to get the link that has finest video quality,
+// adaptive stream formats do not seem to have sound, so just link a video with sound
+fn get_best_video_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> {
+    let formats = match video_info["streamingData"]["adaptiveFormats"].as_array() {
         Some(t) => t,
         None => return Ok(""),
     };
 
     let mut target_url = "";
 
-    // list possible stream quality
+    let vq: [&str; 8] = ["tiny", "small", "medium", "large", "hd720", "hd1080", "hd1440", "hd2160"];
+    let mut last_vq = "".to_string();
+
+    for format in formats.iter() {
+        if !format["mimeType"].to_string().contains("video/") {
+            continue;
+        }
+
+        let this_vq = format["quality"].as_str().unwrap_or("");
+        let improved = (last_vq.is_empty() && !this_vq.is_empty())
+            || is_better_quality(&vq, this_vq, last_vq.as_str());
+
+        if improved {
+            target_url = format["url"].as_str().unwrap_or("");
+            last_vq = String::from(this_vq);
+        }
+    }
+
+    Ok(target_url)
+}
+
+fn get_std_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> {
+    let formats = match video_info["streamingData"]["formats"].as_array() {
+        Some(t) => t,
+        None => return Ok(""),
+    };
+
+    let mut target_url = "";
+
     let vq: [&str; 6] = ["tiny", "small", "medium", "large", "hd720", "hd1080"];
     let aq: [&str; 3] = ["AUDIO_QUALITY_LOW", "AUDIO_QUALITY_MEDIUM", "AUDIO_QUALITY_HIGH"];
 
     let mut last_vq = "".to_string();
     let mut last_aq = "".to_string();
 
-    fn is_better_quality(qualities: &[&str], this_quality: &str, last_quality: &str) -> bool {
-        let last_quality_index = qualities.iter()
-            .position(|&x| x == last_quality).unwrap();
-
-        // find if this_quality is in the list to the right of last_quality
-        qualities.iter().skip(last_quality_index + 1).any(|&x| x == this_quality)
-    }
-
-    // select the stream with highest video quality possible
-    if need_best_video && !need_best_audio {
-        for format in formats.iter().chain(adaptive_formats) {
-            if !format["mimeType"].to_string().contains("video/") {
-                continue;
-            }
-
-            let this_vq = format["quality"].as_str().unwrap_or("");
-            let is_better_vq = (
-                last_vq.is_empty() && !this_vq.is_empty())
-                || is_better_quality(&vq, this_vq, last_vq.as_str()
-            );
-
-            if is_better_vq {
-                target_url = format["url"].as_str().unwrap_or("");
-                last_vq = String::from(this_vq);
-            }
+    for format in formats.iter() {
+        if !format["mimeType"].to_string().contains("video/") {
+            continue;
         }
-    // with highest audio quality possible
-    } else if need_best_audio && !need_best_video {
-        for format in formats.iter().chain(adaptive_formats) {
-            if !format["mimeType"].to_string().contains("audio/") {
-                continue;
-            }
 
-            let this_aq = format["audioQuality"].as_str().unwrap_or("");
-            let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
-                || is_better_quality(&aq, this_aq, last_aq.as_str());
+        let this_aq = format["audioQuality"].as_str().unwrap_or("");
+        let this_vq = format["quality"].as_str().unwrap_or("");
 
-            if is_better_aq {
-                target_url = format["url"].as_str().unwrap_or("");
-                last_aq = String::from(this_aq);
-            }
-        }
-    // with the least shitty combination possible
-    } else {
-        for format in formats.iter().chain(adaptive_formats) {
-            if !format["mimeType"].to_string().contains("video/") {
-                continue;
-            }
+        let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
+            || is_better_quality(&aq, this_aq, last_aq.as_str());
 
-            let this_aq = format["audioQuality"].as_str().unwrap_or("");
-            let this_vq = format["quality"].as_str().unwrap_or("");
+        let is_better_vq = (last_vq.is_empty() && !this_vq.is_empty())
+            || is_better_quality(&vq, this_vq, last_vq.as_str());
 
-            let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
-                || is_better_quality(&aq, this_aq, last_aq.as_str());
+        let is_same_or_better_aq = is_better_aq || (this_aq == last_aq);
+        let is_same_or_better_vq = is_better_vq || (this_vq == last_vq);
 
-            let is_better_vq = (last_vq.is_empty() && !this_vq.is_empty())
-                || is_better_quality(&vq, this_vq, last_vq.as_str());
+        let improved = (is_better_aq && is_same_or_better_vq)
+            || (is_better_vq && is_same_or_better_aq);
 
-            let is_same_or_better_aq = is_better_aq || (this_aq == last_aq);
-            let is_same_or_better_vq = is_better_vq || (this_vq == last_vq);
-
-            let is_better_quality = (is_better_aq && is_same_or_better_vq)
-                || (is_better_vq && is_same_or_better_aq);
-
-            if is_better_quality {
-                target_url = format["url"].as_str().unwrap_or("");
-                last_vq = String::from(this_vq);
-                last_aq = String::from(this_aq);
-            }
+        if improved {
+            target_url = format["url"].as_str().unwrap_or("");
+            last_vq = String::from(this_vq);
+            last_aq = String::from(this_aq);
         }
     }
 
-    // println!("v: {:?}, a: {:?}", last_vq, last_aq);
     Ok(target_url)
+}
+
+fn is_better_quality(qualities: &[&str], this_quality: &str, last_quality: &str) -> bool {
+    let last_quality_index = qualities.iter()
+        .position(|&x| x == last_quality).unwrap();
+
+    // find if this_quality is in the list to the right of last_quality
+    qualities.iter().skip(last_quality_index + 1).any(|&x| x == this_quality)
 }
 
 // wrap the progress bar around a struct that implements Read trait
@@ -318,7 +353,7 @@ fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
     Ok(video_file.to_path_buf())
 }
 
-fn save_audio(input_file: &Path, output_file: &Path) {
+fn save_audio(input_file: &Path, output_file: &Path) -> anyhow::Result<()> {
     Command::new("ffmpeg")
         .arg("-i").arg(input_file)
         .arg("-ar").arg("44100")
@@ -327,4 +362,29 @@ fn save_audio(input_file: &Path, output_file: &Path) {
         .arg(output_file)
         .output()
         .expect("FFmpeg is missing, please install to convert to audio file");
+
+    fs::remove_file(&input_file)?;
+    Ok(())
+}
+
+// ref: https://stackoverflow.com/questions/11779490/
+fn link_tracks(
+    input_video: &Path,
+    input_audio: &Path,
+    output_file: &Path,
+) -> anyhow::Result<()> {
+    Command::new("ffmpeg")
+        .arg("-i").arg(input_video)
+        .arg("-i").arg(input_audio)
+        .arg("-map").arg("0:v")
+        .arg("-map").arg("1:a")
+        .arg("-c:v").arg("copy")
+        .arg("-shortest")
+        .arg(output_file)
+        .output()
+        .expect("FFmpeg is missing, please install to convert to audio file");
+
+    fs::remove_file(&input_video)?;
+    fs::remove_file(&input_audio)?;
+    Ok(())
 }
