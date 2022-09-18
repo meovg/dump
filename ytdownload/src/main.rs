@@ -1,3 +1,4 @@
+use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
 use std::io::{self, copy, Read};
@@ -5,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use url::Url;
 
-#[derive(clap::Parser)]
+#[derive(Parser)]
 struct Flags {
     #[clap(help = "The Youtube URL of video")]
     url: String,
@@ -121,6 +122,7 @@ fn main() {
         let result_filename = format!("{}.mp4", title);
         let result_path = Path::new(&result_filename);
 
+        // link them together using ffmpeg
         println!("Linking video and audio tracks into a complete video");
         match link_tracks(
             video_pathbuf.as_path(),
@@ -428,7 +430,7 @@ fn link_tracks(input_video: &Path, input_audio: &Path, output_file: &Path) -> an
         .arg("-shortest")
         .arg(output_file)
         .output()
-        .expect("FFmpeg is missing, please install to convert to audio file");
+        .expect("FFmpeg is missing, please install to link video tracks");
 
     fs::remove_file(&input_video)?;
     fs::remove_file(&input_audio)?;
