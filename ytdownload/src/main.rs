@@ -1,26 +1,39 @@
-use clap::Parser;
-use std::io::{self, Read, copy};
-use std::path::{Path, PathBuf};
+use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
+use std::io::{self, copy, Read};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use url::Url;
-use indicatif::{ProgressBar, ProgressStyle};
 
-#[derive(Parser)]
+#[derive(clap::Parser)]
 struct Flags {
-    #[clap(help="The Youtube URL of video")]
+    #[clap(help = "The Youtube URL of video")]
     url: String,
 
-    #[clap(long="name", short='o', help="Name of the downloaded file", default_value="")]
+    #[clap(
+        long = "name",
+        short = 'o',
+        help = "Name of the downloaded file",
+        default_value = ""
+    )]
     filename: String,
 
-    #[clap(long="audio", short='a', help="Option to download and convert to audio file")]
+    #[clap(
+        long = "audio",
+        short = 'a',
+        help = "Option to download and convert to audio file"
+    )]
     toaudio: bool,
 
-    #[clap(long="audiofmt", short='f', help="Audio file format", default_value="mp3")]
+    #[clap(
+        long = "audiofmt",
+        short = 'f',
+        help = "Audio file format",
+        default_value = "mp3"
+    )]
     audiofmt: String,
 
-    #[clap(long="bestvideo", help="Choose the best video quality")]
+    #[clap(long = "bestvideo", help = "Choose the best video quality")]
     bestvq: bool,
 }
 
@@ -43,7 +56,6 @@ fn main() {
         Ok(info) => info,
     };
 
-
     let title = (if args.filename.is_empty() {
         format!("[{}] {}", video_id, get_video_title(&video_info).unwrap())
     } else {
@@ -51,21 +63,30 @@ fn main() {
     })
     // alter video file name so it does not contain illegal characters in windows directory
     // ref: https://stackoverflow.com/questions/1976007/
-    .trim().replace(&['<', '>',  '|', '\'', '\"', '\\', '/', '?', '*'][..], r#"--"#);
+    .trim()
+    .replace(
+        &['<', '>', '|', '\'', '\"', '\\', '/', '?', '*'][..],
+        r#"--"#,
+    );
 
     let need_best_video = if args.toaudio { false } else { args.bestvq };
 
     let direct_url = match get_download_url(&video_info, need_best_video) {
         Err(err) => {
-            println!("There's problem getting download link. Aborted.\n[{:?}]", err);
+            println!(
+                "There's problem getting download link. Aborting.\n[{:?}]",
+                err
+            );
             return;
         }
         Ok(url) => url,
     };
 
     if direct_url.vid.is_empty() || (need_best_video && direct_url.aud.is_empty()) {
-        println!("Cannot get the direct video URL.\nThe video may be restricted, deleted, \
-            or the YouTube API has been updated beyond this method of getting URL.");
+        println!(
+            "Cannot get the direct video URL.\nThe video may be restricted, deleted, \
+            or the YouTube API has been updated beyond this method of getting URL."
+        );
         return;
     }
 
@@ -101,9 +122,16 @@ fn main() {
         let result_path = Path::new(&result_filename);
 
         println!("Linking video and audio tracks into a complete video");
-        match link_tracks(video_pathbuf.as_path(), audio_pathbuf.as_path(), result_path) {
+        match link_tracks(
+            video_pathbuf.as_path(),
+            audio_pathbuf.as_path(),
+            result_path,
+        ) {
             Err(err) => {
-                println!("There's a problem linking the video tracks. Aborting\n[{:?}]", err);
+                println!(
+                    "There's a problem linking the video tracks. Aborting\n[{:?}]",
+                    err
+                );
                 return;
             }
             Ok(_) => (),
@@ -130,8 +158,11 @@ fn main() {
 
             match save_audio(video_file, audio_file) {
                 Err(err) => {
-                    println!("Cannot delete the base video file.\n\
-                        Please delete it yourself if not needed.\n[{:?}]", err);
+                    println!(
+                        "Cannot delete the base video file.\n\
+                        Please delete it yourself if not needed.\n[{:?}]",
+                        err
+                    );
                 }
                 Ok(_) => (),
             }
@@ -143,12 +174,13 @@ fn main() {
 
 fn get_video_id(video_url: &str) -> anyhow::Result<&str> {
     // not going to be specific on several watch url cases
-    // just the 'youtube.com/watch?v=' and 'youtu.be/' only 
+    // just the 'youtube.com/watch?v=' and 'youtu.be/' only
     let re = regex::Regex::new(
-        r"(?:https://www\.youtube\.com/watch\?v=|https://youtu\.be/)(.*?)(&.*)*$")?;
+        r"(?:https://www\.youtube\.com/watch\?v=|https://youtu\.be/)(.*?)(&.*)*$",
+    )?;
 
     let id = re.captures(video_url).unwrap().get(1).unwrap();
-    
+
     Ok(id.as_str())
 }
 
@@ -158,17 +190,15 @@ fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
     let player_url = "https://youtubei.googleapis.com/youtubei/v1/player\
         ?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 
-    let request = ureq::post(&player_url).send_json(
-        ureq::json!({
-            "videoId": video_id,
-            "context": {
-                "client": {
-                    "clientName": "ANDROID",
-                    "clientVersion": "16.02"
-                }
+    let request = ureq::post(&player_url).send_json(ureq::json!({
+        "videoId": video_id,
+        "context": {
+            "client": {
+                "clientName": "ANDROID",
+                "clientVersion": "16.02"
             }
-        })
-    )?;
+        }
+    }))?;
 
     let respond = request.into_string()?;
     let video_info: serde_json::Value = serde_json::from_str(respond.as_str())?;
@@ -177,7 +207,9 @@ fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
 }
 
 fn get_video_title(video_info: &serde_json::Value) -> anyhow::Result<&str> {
-    Ok(video_info["videoDetails"]["title"].as_str().unwrap_or("videoplayback"))
+    Ok(video_info["videoDetails"]["title"]
+        .as_str()
+        .unwrap_or("videoplayback"))
 }
 
 // mfw anyhow crate does not support multiple return values
@@ -213,7 +245,9 @@ fn get_best_video_download_url(video_info: &serde_json::Value) -> anyhow::Result
 
     let mut target_url = "";
 
-    let vq: [&str; 8] = ["tiny", "small", "medium", "large", "hd720", "hd1080", "hd1440", "hd2160"];
+    let vq: [&str; 8] = [
+        "tiny", "small", "medium", "large", "hd720", "hd1080", "hd1440", "hd2160",
+    ];
     let mut last_vq = "".to_string();
 
     for format in formats.iter() {
@@ -243,7 +277,11 @@ fn get_std_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> 
     let mut target_url = "";
 
     let vq: [&str; 6] = ["tiny", "small", "medium", "large", "hd720", "hd1080"];
-    let aq: [&str; 3] = ["AUDIO_QUALITY_LOW", "AUDIO_QUALITY_MEDIUM", "AUDIO_QUALITY_HIGH"];
+    let aq: [&str; 3] = [
+        "AUDIO_QUALITY_LOW",
+        "AUDIO_QUALITY_MEDIUM",
+        "AUDIO_QUALITY_HIGH",
+    ];
 
     let mut last_vq = "".to_string();
     let mut last_aq = "".to_string();
@@ -265,8 +303,8 @@ fn get_std_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> 
         let is_same_or_better_aq = is_better_aq || (this_aq == last_aq);
         let is_same_or_better_vq = is_better_vq || (this_vq == last_vq);
 
-        let improved = (is_better_aq && is_same_or_better_vq)
-            || (is_better_vq && is_same_or_better_aq);
+        let improved =
+            (is_better_aq && is_same_or_better_vq) || (is_better_vq && is_same_or_better_aq);
 
         if improved {
             target_url = format["url"].as_str().unwrap_or("");
@@ -279,11 +317,13 @@ fn get_std_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> 
 }
 
 fn is_better_quality(qualities: &[&str], this_quality: &str, last_quality: &str) -> bool {
-    let last_quality_index = qualities.iter()
-        .position(|&x| x == last_quality).unwrap();
+    let last_quality_index = qualities.iter().position(|&x| x == last_quality).unwrap();
 
     // find if this_quality is in the list to the right of last_quality
-    qualities.iter().skip(last_quality_index + 1).any(|&x| x == this_quality)
+    qualities
+        .iter()
+        .skip(last_quality_index + 1)
+        .any(|&x| x == this_quality)
 }
 
 // wrap the progress bar around a struct that implements Read trait
@@ -294,7 +334,7 @@ struct Downloader<'a, R> {
 }
 
 impl<R: Read> Read for Downloader<'_, R> {
-    fn read(&mut self, buf: &mut[u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.reader.read(buf).map(|sz| {
             self.progress_bar.inc(sz as u64);
             sz
@@ -307,16 +347,18 @@ fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
     let init_request = ureq::get(parsed_url.as_str()).call()?;
 
     // request download url for video size
-    let video_size = init_request.header("Content-Length")
+    let video_size = init_request
+        .header("Content-Length")
         .unwrap_or("0")
         .parse::<u64>()?;
 
     // create a progress bar during download
     let bar = ProgressBar::new(video_size);
-    bar.set_style(ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] [{bar:40.white/black}] {bytes}/{total_bytes} ({eta})")
-        .unwrap()
-        .progress_chars("=>."),
+    bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] [{bar:40.white/black}] {bytes}/{total_bytes} ({eta})")
+            .unwrap()
+            .progress_chars("=>."),
     );
 
     let video_file = Path::new(filename);
@@ -355,10 +397,13 @@ fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
 
 fn save_audio(input_file: &Path, output_file: &Path) -> anyhow::Result<()> {
     Command::new("ffmpeg")
-        .arg("-i").arg(input_file)
-        .arg("-ar").arg("44100")
+        .arg("-i")
+        .arg(input_file)
+        .arg("-ar")
+        .arg("44100")
         .arg("-vn")
-        .arg("-loglevel").arg("quiet")
+        .arg("-loglevel")
+        .arg("quiet")
         .arg(output_file)
         .output()
         .expect("FFmpeg is missing, please install to convert to audio file");
@@ -368,17 +413,18 @@ fn save_audio(input_file: &Path, output_file: &Path) -> anyhow::Result<()> {
 }
 
 // ref: https://stackoverflow.com/questions/11779490/
-fn link_tracks(
-    input_video: &Path,
-    input_audio: &Path,
-    output_file: &Path,
-) -> anyhow::Result<()> {
+fn link_tracks(input_video: &Path, input_audio: &Path, output_file: &Path) -> anyhow::Result<()> {
     Command::new("ffmpeg")
-        .arg("-i").arg(input_video)
-        .arg("-i").arg(input_audio)
-        .arg("-map").arg("0:v")
-        .arg("-map").arg("1:a")
-        .arg("-c:v").arg("copy")
+        .arg("-i")
+        .arg(input_video)
+        .arg("-i")
+        .arg(input_audio)
+        .arg("-map")
+        .arg("0:v")
+        .arg("-map")
+        .arg("1:a")
+        .arg("-c:v")
+        .arg("copy")
         .arg("-shortest")
         .arg(output_file)
         .output()
