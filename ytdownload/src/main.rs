@@ -162,6 +162,7 @@ fn main() {
                     Please delete it yourself if not needed.\n[{:?}]",
                     err
                 );
+                return;
             }
         }
     }
