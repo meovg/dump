@@ -49,7 +49,7 @@ fn main() {
         Ok(id) => id,
     };
 
-    let video_info = match get_video_info(&video_id) {
+    let video_info = match get_video_info(video_id) {
         Err(err) => {
             println!("Cannot request YouTube for video info.\n[{:?}]", err);
             return;
@@ -70,7 +70,7 @@ fn main() {
         r#"--"#,
     );
 
-    let need_best_video = if args.toaudio { false } else { args.bestvq };
+    let need_best_video = !args.toaudio && args.bestvq;
 
     let direct_url = match get_download_url(&video_info, need_best_video) {
         Err(err) => {
@@ -124,19 +124,17 @@ fn main() {
 
         // link them together using ffmpeg
         println!("Linking video and audio tracks into a complete video");
-        match link_tracks(
+
+        if let Err(err) = link_tracks(
             video_pathbuf.as_path(),
             audio_pathbuf.as_path(),
             result_path,
         ) {
-            Err(err) => {
-                println!(
-                    "There's a problem linking the video tracks. Aborting\n[{:?}]",
-                    err
-                );
-                return;
-            }
-            Ok(_) => (),
+            println!(
+                "There's a problem linking the video tracks. Aborting\n[{:?}]",
+                err
+            );
+            return;
         }
     } else {
         let video_filename = format!("{}.mp4", title);
@@ -158,15 +156,12 @@ fn main() {
             let audio_filename = video_filename.trim().replace("mp4", &args.audiofmt);
             let audio_file = Path::new(&audio_filename);
 
-            match save_audio(video_file, audio_file) {
-                Err(err) => {
-                    println!(
-                        "Cannot delete the base video file.\n\
-                        Please delete it yourself if not needed.\n[{:?}]",
-                        err
-                    );
-                }
-                Ok(_) => (),
+            if let Err(err) = save_audio(video_file, audio_file) {
+                println!(
+                    "Cannot delete the base video file. \
+                    Please delete it yourself if not needed.\n[{:?}]",
+                    err
+                );
             }
         }
     }
@@ -192,7 +187,7 @@ fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
     let player_url = "https://youtubei.googleapis.com/youtubei/v1/player\
         ?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
 
-    let request = ureq::post(&player_url).send_json(ureq::json!({
+    let request = ureq::post(player_url).send_json(ureq::json!({
         "videoId": video_id,
         "context": {
             "client": {
@@ -245,12 +240,12 @@ fn get_best_video_download_url(video_info: &serde_json::Value) -> anyhow::Result
         None => return Ok(""),
     };
 
-    let mut target_url = "";
-
     let vq: [&str; 8] = [
         "tiny", "small", "medium", "large", "hd720", "hd1080", "hd1440", "hd2160",
     ];
+
     let mut last_vq = "".to_string();
+    let mut target_url = "";
 
     for format in formats.iter() {
         if !format["mimeType"].to_string().contains("video/") {
@@ -428,6 +423,8 @@ fn link_tracks(input_video: &Path, input_audio: &Path, output_file: &Path) -> an
         .arg("-c:v")
         .arg("copy")
         .arg("-shortest")
+        .arg("-loglevel")
+        .arg("quiet")
         .arg(output_file)
         .output()
         .expect("FFmpeg is missing, please install to link video tracks");
