@@ -34,7 +34,10 @@ struct Flags {
     )]
     audiofmt: String,
 
-    #[clap(long = "bestvideo", help = "Choose the best video quality")]
+    #[clap(
+        long = "bestvideo",
+        help = "Choose the best video quality. Download speed may be significantly slower"
+    )]
     bestvq: bool,
 }
 
@@ -103,7 +106,7 @@ fn main() {
         println!("Getting stream with video");
         let video_pathbuf = match download(direct_url.vid, &video_filename) {
             Err(err) => {
-                println!("Problem occured. Video download is halted\n[{:?}]", err);
+                println!("Problem with downloading occurs. Aborting\n[{:?}]", err);
                 return;
             }
             Ok(vid_pb) => vid_pb,
@@ -113,7 +116,7 @@ fn main() {
         println!("Getting stream with audio");
         let audio_pathbuf = match download(direct_url.aud, &audio_filename) {
             Err(err) => {
-                println!("Problem occured. Video download is halted\n[{:?}]", err);
+                println!("Problem with downloading occurs. Aborting\n[{:?}]", err);
                 return;
             }
             Ok(aud_pb) => aud_pb,
