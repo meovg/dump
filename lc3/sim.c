@@ -1,12 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <signal.h>
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-#   include <Windows.h>
+#   include <windows.h>
 #   include <conio.h>
 #elif defined(__linux__)
-#   include <stdlib.h>
 #   include <unistd.h>
 #   include <fcntl.h>
 #   include <sys/time.h>
@@ -24,9 +24,9 @@ enum {
     R_R5,
     R_R6,
     R_R7,
-    R_PC, // program counter
-    R_COND,
-    R_COUNT
+    R_PC,   // program counter
+    R_COND, // condition flag
+    R_COUNT // number of registers
 };
 
 enum {
@@ -55,8 +55,8 @@ enum {
 };
 
 enum {
-    MR_KBSR = 0xFE00, // keyboard status
-    MR_KBDR = 0xFE02  // keyboard data
+    MR_KBSR = 0xfe00, // keyboard status
+    MR_KBDR = 0xfe02  // keyboard data
 };
 
 enum {
@@ -71,11 +71,13 @@ enum {
 #define MEMORY_MAX UINT16_MAX
 
 uint16_t memory[MEMORY_MAX];  // 65536 locations
-uint16_t reg[R_COUNT];
+uint16_t registers[R_COUNT];
+
+#define PC_START 0x3000
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-HANDLE input_handle = INVALID_HANDLE_VALUE;
-DWORD fdw_mode, fdw_old_mode;
+HANDLE input_handle;
+DWORD fdw_mode, fdw_original_mode;
 #elif defined(__linux__)
 struct termios original_tio;
 #endif
@@ -87,9 +89,9 @@ void disable_input_buffering(void) {
 
 #if defined(_WIN32) || defined(__CYGWIN__)
     input_handle = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(input_handle, &fdw_old_mode); // save old mode
+    GetConsoleMode(input_handle, &fdw_original_mode); // save original mode
 
-    fdw_mode = fdw_old_mode
+    fdw_mode = fdw_original_mode
             ^ ENABLE_ECHO_INPUT  // no input echo
             ^ ENABLE_LINE_INPUT; // return when one or more characters are available
 
@@ -108,7 +110,7 @@ void disable_input_buffering(void) {
 
 void restore_input_buffering(void) {
 #if defined(_WIN32) || defined(__CYGWIN__)
-    SetConsoleMode(input_handle, fdw_old_mode);
+    SetConsoleMode(input_handle, fdw_original_mode);
 
 #elif defined(__linux__)
     tcsetattr(STDIN_FILENO, TCSANOW, &original_tio);
@@ -152,14 +154,16 @@ uint16_t swap16(uint16_t x) {
 }
 
 void update_flags(uint16_t r) {
-    if (reg[r] == 0) {
-        reg[R_COND] = FL_ZRO;
-    } else if (reg[r] >> 15) { // a 1 in the left-most bit indicates negative
-        reg[R_COND] = FL_NEG;
+    if (registers[r] == 0) {
+        registers[R_COND] = FL_ZRO;
+    } else if (registers[r] >> 15) {
+        // a 1 in the left-most bit indicates negative sign
+        registers[R_COND] = FL_NEG;
     } else {
-        reg[R_COND] = FL_POS;
+        registers[R_COND] = FL_POS;
     }
 }
+
 void read_image_file(FILE *file) {
     // the origin tells us where in memory to place the image
     uint16_t origin;
@@ -206,20 +210,22 @@ uint16_t mem_read(uint16_t address) {
 }
 
 void cmd_add(uint16_t instr) {
-    // destination register (DR)
+    // destination register
     uint16_t dr = (instr >> 9) & 0x7;
-    // first operand (SR1)
+    // first operand
     uint16_t sr1 = (instr >> 6) & 0x7;
     // whether we are in immediate mode
     uint16_t imm_flag = (instr >> 5) & 0x1;
 
     if (imm_flag) {
-        uint16_t imm5 = sign_extend(instr & 0x1F, 5);
-        reg[dr] = reg[sr1] + imm5;
+        uint16_t imm5 = sign_extend(instr & 0x1f, 5);
+        registers[dr] = registers[sr1] + imm5;
     } else {
+        // second operand
         uint16_t sr2 = instr & 0x7;
-        reg[dr] = reg[sr1] + reg[sr2];
+        registers[dr] = registers[sr1] + registers[sr2];
     }
+    // update cond flags based on dr as it contains the result
     update_flags(dr);
 }
 
@@ -229,11 +235,11 @@ void cmd_and(uint16_t instr) {
     uint16_t imm_flag = (instr >> 5) & 0x1;
 
     if (imm_flag) {
-        uint16_t imm5 = sign_extend(instr & 0x1F, 5);
-        reg[dr] = reg[sr1] & imm5;
+        uint16_t imm5 = sign_extend(instr & 0x1f, 5);
+        registers[dr] = registers[sr1] & imm5;
     } else {
         uint16_t sr2 = instr & 0x7;
-        reg[dr] = reg[sr1] & reg[sr2];
+        registers[dr] = registers[sr1] & registers[sr2];
     }
     update_flags(dr);
 }
@@ -242,41 +248,45 @@ void cmd_not(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr = (instr >> 6) & 0x7;
 
-    reg[dr] = ~reg[sr];
+    registers[dr] = ~registers[sr];
     update_flags(dr);
 }
 
 void cmd_br(uint16_t instr) {
-    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     uint16_t cond_flag = (instr >> 9) & 0x7;
-    if (cond_flag & reg[R_COND]) {
-        reg[R_PC] += pc_offset;
+
+    // check if any of flags is set in register
+    // if yes, pc counter points to instruction guided by pc_offset
+    // otherwise, pc counter points to the next instruction
+    if (cond_flag & registers[R_COND]) {
+        registers[R_PC] += pc_offset;
     }
 }
 
 void cmd_jmp(uint16_t instr) {
-    // Also handles RET
+    // Also handles RET when sr1 (base register position) is 7
     uint16_t sr1 = (instr >> 6) & 0x7;
-    reg[R_PC] = reg[sr1];
+    registers[R_PC] = registers[sr1];
 }
 
 void cmd_jsr(uint16_t instr) {
     uint16_t long_flag = (instr >> 11) & 1;
-    reg[R_R7] = reg[R_PC];
+    registers[R_R7] = registers[R_PC];
 
     if (long_flag) {
-        uint16_t long_pc_offset = sign_extend(instr & 0x7FF, 11);
-        reg[R_PC] += long_pc_offset;  // JSR
+        uint16_t long_pc_offset = sign_extend(instr & 0x7ff, 11);
+        registers[R_PC] += long_pc_offset;  // JSR
     } else {
         uint16_t sr1 = (instr >> 6) & 0x7;
-        reg[R_PC] = reg[sr1]; // JSRR
+        registers[R_PC] = registers[sr1]; // JSRR
     }
 }
 
 void cmd_ld(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
-    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
-    reg[dr] = mem_read(reg[R_PC] + pc_offset);
+    uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
+    registers[dr] = mem_read(registers[R_PC] + pc_offset);
     update_flags(dr);
 }
 
@@ -284,64 +294,64 @@ void cmd_ldi(uint16_t instr) {
     // destination register (DR)
     uint16_t dr = (instr >> 9) & 0x7;
     // PCoffset 9
-    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
+    uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     // add pc_offset to the current PC, look at that memory location to get the final address
-    reg[dr] = mem_read(mem_read(reg[R_PC] + pc_offset));
+    registers[dr] = mem_read(mem_read(registers[R_PC] + pc_offset));
     update_flags(dr);
 }
 
 void cmd_ldr(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
-    uint16_t offset = sign_extend(instr & 0x3F, 6);
-    reg[dr] = mem_read(reg[sr1] + offset);
+    uint16_t offset = sign_extend(instr & 0x3f, 6);
+    registers[dr] = mem_read(registers[sr1] + offset);
     update_flags(dr);
 }
 
 void cmd_lea(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
-    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
-    reg[dr] = reg[R_PC] + pc_offset;
+    uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
+    registers[dr] = registers[R_PC] + pc_offset;
     update_flags(dr);
 }
 
 void cmd_st(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
-    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
-    mem_write(reg[R_PC] + pc_offset, reg[dr]);
+    uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
+    mem_write(registers[R_PC] + pc_offset, registers[dr]);
 }
 
 void cmd_sti(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
-    uint16_t pc_offset = sign_extend(instr & 0x1FF, 9);
-    mem_write(mem_read(reg[R_PC] + pc_offset), reg[dr]);
+    uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
+    mem_write(mem_read(registers[R_PC] + pc_offset), registers[dr]);
 }
 
 void cmd_str(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
-    uint16_t offset = sign_extend(instr & 0x3F, 6);
-    mem_write(reg[sr1] + offset, reg[dr]);
+    uint16_t offset = sign_extend(instr & 0x3f, 6);
+    mem_write(registers[sr1] + offset, registers[dr]);
 }
 
 void cmd_trap(uint16_t instr, int *running) {
-    reg[R_R7] = reg[R_PC];
+    registers[R_R7] = registers[R_PC];
 
     switch (instr & 0xFF) {
         case TRAP_GETC:
             // read a single ASCII char
-            reg[R_R0] = (uint16_t)getchar();
+            registers[R_R0] = (uint16_t)getchar();
             update_flags(R_R0);
             break;
 
         case TRAP_OUT:
-            putc((char)reg[R_R0], stdout);
+            putc((char)registers[R_R0], stdout);
             fflush(stdout);
             break;
 
         case TRAP_PUTS: {
             // one char per word
-            uint16_t *c = memory + reg[R_R0];
+            uint16_t *c = memory + registers[R_R0];
             while (*c) {
                 putc((char)*c, stdout);
                 ++c;
@@ -354,7 +364,7 @@ void cmd_trap(uint16_t instr, int *running) {
             char c = getchar();
             putc(c, stdout);
             fflush(stdout);
-            reg[R_R0] = (uint16_t)c;
+            registers[R_R0] = (uint16_t)c;
             update_flags(R_R0);
         } break;
 
@@ -362,9 +372,9 @@ void cmd_trap(uint16_t instr, int *running) {
             // one char per byte (two bytes per word)
             // here we need to swap back to
             // big endian format
-            uint16_t *c = memory + reg[R_R0];
+            uint16_t *c = memory + registers[R_R0];
             while (*c) {
-                char char1 = (*c) & 0xFF;
+                char char1 = (*c) & 0xff;
                 putc(char1, stdout);
                 char char2 = (*c) >> 8;
                 if (char2) putc(char2, stdout);
@@ -384,7 +394,7 @@ void cmd_trap(uint16_t instr, int *running) {
 int main(int argc, const char *argv[]) {
     if (argc < 2) {
         // show usage string
-        printf("lc3 [image-file1] ...\n");
+        printf("lc3sim [obj-file1] ...\n");
         exit(2);
     }
 
@@ -399,37 +409,36 @@ int main(int argc, const char *argv[]) {
     disable_input_buffering();
 
     // since exactly one condition flag should be set at any given time, set the Z flag
-    reg[R_COND] = FL_ZRO;
+    registers[R_COND] = FL_ZRO;
 
     // set the PC to starting position
     // 0x3000 is the default
-    enum { PC_START = 0x3000 };
-    reg[R_PC] = PC_START;
+    registers[R_PC] = PC_START;
 
     int running = 1;
     while (running) {
         // FETCH
-        uint16_t instr = mem_read(reg[R_PC]++);
+        uint16_t instr = mem_read(registers[R_PC]++);
         uint16_t op = instr >> 12;
 
         switch (op) {
-            case OP_ADD:    cmd_add(instr); break;
-            case OP_AND:    cmd_and(instr); break;
-            case OP_NOT:    cmd_not(instr); break;
-            case OP_BR:     cmd_br(instr); break;
-            case OP_JMP:    cmd_jmp(instr); break;
-            case OP_JSR:    cmd_jsr(instr); break;
-            case OP_LD:     cmd_ld(instr); break;
-            case OP_LDI:    cmd_ldi(instr); break;
-            case OP_LDR:    cmd_ldr(instr); break;
-            case OP_LEA:    cmd_lea(instr); break;
-            case OP_ST:     cmd_st(instr); break;
-            case OP_STI:    cmd_sti(instr); break;
-            case OP_STR:    cmd_str(instr); break;
-            case OP_TRAP:   cmd_trap(instr, &running); break;
+            case OP_ADD: cmd_add(instr); break;
+            case OP_AND: cmd_and(instr); break;
+            case OP_NOT: cmd_not(instr); break;
+            case OP_BR: cmd_br(instr); break;
+            case OP_JMP: cmd_jmp(instr); break;
+            case OP_JSR: cmd_jsr(instr); break;
+            case OP_LD: cmd_ld(instr); break;
+            case OP_LDI: cmd_ldi(instr); break;
+            case OP_LDR: cmd_ldr(instr); break;
+            case OP_LEA: cmd_lea(instr); break;
+            case OP_ST: cmd_st(instr); break;
+            case OP_STI: cmd_sti(instr); break;
+            case OP_STR: cmd_str(instr); break;
+            case OP_TRAP: cmd_trap(instr, &running); break;
             case OP_RES:
             case OP_RTI:
-            default:        abort();
+            default: abort();
         }
     }
     return 0;
