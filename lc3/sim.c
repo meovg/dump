@@ -102,7 +102,8 @@ void disable_input_buffering(void) {
     tcgetattr(STDIN_FILENO, &original_tio);
     struct termios new_tio = original_tio;
 
-    new_tio.c_lflag &= ~ICANON & ~ECHO;
+    new_tio.c_lflag &= ~(ICANON  // turn off canonical mode and read byte by byte
+                       | ECHO);  // no input echo
     tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
 
 #endif
@@ -164,7 +165,7 @@ void update_flags(uint16_t r) {
     }
 }
 
-void read_image_file(FILE *file) {
+void read_object_file(FILE *file) {
     // the origin tells us where in memory to place the image
     uint16_t origin;
     fread(&origin, sizeof(origin), 1, file);
@@ -173,31 +174,31 @@ void read_image_file(FILE *file) {
     // we know the maximum file size so we only need one fread
     uint16_t max_read = MEMORY_MAX - origin;
     uint16_t *p = memory + origin;
-    size_t read = fread(p, sizeof(uint16_t), max_read, file);
+    size_t r = fread(p, sizeof(uint16_t), max_read, file);
 
     // swap to little endian
-    while (read-- > 0) {
+    while (r-- > 0) {
         *p = swap16(*p);
         ++p;
     }
 }
 
-int read_image(const char *image_path) {
-    FILE *file = fopen(image_path, "rb");
+int import_object_file(const char *file_path) {
+    FILE *file = fopen(file_path, "rb");
     if (!file) {
         return 0;
     };
 
-    read_image_file(file);
+    read_object_file(file);
     fclose(file);
     return 1;
 }
 
-void mem_write(uint16_t address, uint16_t val) {
+void memory_set(uint16_t address, uint16_t val) {
     memory[address] = val;
 }
 
-uint16_t mem_read(uint16_t address) {
+uint16_t memory_get(uint16_t address) {
     if (address == MR_KBSR) {
         if (check_key()) {
             memory[MR_KBSR] = (1 << 15);
@@ -209,26 +210,33 @@ uint16_t mem_read(uint16_t address) {
     return memory[address];
 }
 
+// add two value and store the result in register
 void cmd_add(uint16_t instr) {
     // destination register
     uint16_t dr = (instr >> 9) & 0x7;
-    // first operand
+
+    // first operand register position
     uint16_t sr1 = (instr >> 6) & 0x7;
-    // whether we are in immediate mode
+
+    // whether we are in immediate mode or register mode
     uint16_t imm_flag = (instr >> 5) & 0x1;
 
+    // in immediate mode, the second operand is the rightmost 5 bits
+    // in register mode, the second operand is in the register sr2
     if (imm_flag) {
         uint16_t imm5 = sign_extend(instr & 0x1f, 5);
         registers[dr] = registers[sr1] + imm5;
     } else {
-        // second operand
+        // second operand register position
         uint16_t sr2 = instr & 0x7;
         registers[dr] = registers[sr1] + registers[sr2];
     }
+
     // update cond flags based on dr as it contains the result
     update_flags(dr);
 }
 
+// perform bitwise AND two value and store the result in register
 void cmd_and(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
@@ -241,9 +249,12 @@ void cmd_and(uint16_t instr) {
         uint16_t sr2 = instr & 0x7;
         registers[dr] = registers[sr1] & registers[sr2];
     }
+
     update_flags(dr);
 }
 
+// store binary negation of a value and store it in register
+// this is a unary operator, so there's only 1 source register needed
 void cmd_not(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr = (instr >> 6) & 0x7;
@@ -252,11 +263,12 @@ void cmd_not(uint16_t instr) {
     update_flags(dr);
 }
 
+// make machine jump to some instruction by an offset if conditions are met
 void cmd_br(uint16_t instr) {
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     uint16_t cond_flag = (instr >> 9) & 0x7;
 
-    // check if any of flags is set in register
+    // check if any flag in cond_flag is set in cond register
     // if yes, pc counter points to instruction guided by pc_offset
     // otherwise, pc counter points to the next instruction
     if (cond_flag & registers[R_COND]) {
@@ -264,50 +276,64 @@ void cmd_br(uint16_t instr) {
     }
 }
 
+// make machine move to an instruction specified by the register w/o conditions
 void cmd_jmp(uint16_t instr) {
-    // Also handles RET when sr1 (base register position) is 7
+    // also handle RET when sr1 (base register position) is 7
     uint16_t sr1 = (instr >> 6) & 0x7;
     registers[R_PC] = registers[sr1];
 }
 
+// perform jump register to start subroutine
 void cmd_jsr(uint16_t instr) {
+    // bit 11 indicates addressing mode
     uint16_t long_flag = (instr >> 11) & 1;
+
+    // save the current instruction PC points to (return address) in R7
     registers[R_R7] = registers[R_PC];
 
     if (long_flag) {
+        // JSR case: similar to unconditional BR
         uint16_t long_pc_offset = sign_extend(instr & 0x7ff, 11);
-        registers[R_PC] += long_pc_offset;  // JSR
+        registers[R_PC] += long_pc_offset;
     } else {
+        // JSRR case: similar to JMP
         uint16_t sr1 = (instr >> 6) & 0x7;
-        registers[R_PC] = registers[sr1]; // JSRR
+        registers[R_PC] = registers[sr1];
     }
 }
 
+// load a value into a register
+// the value is in memory with address being the sum of PC counter and offset
 void cmd_ld(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
-    registers[dr] = mem_read(registers[R_PC] + pc_offset);
+    registers[dr] = memory_get(registers[R_PC] + pc_offset);
     update_flags(dr);
 }
 
+// similar to LD but instead of loading the value in memory
+// the machine loads the content in memory with value being the address
 void cmd_ldi(uint16_t instr) {
     // destination register (DR)
     uint16_t dr = (instr >> 9) & 0x7;
     // PCoffset 9
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     // add pc_offset to the current PC, look at that memory location to get the final address
-    registers[dr] = mem_read(mem_read(registers[R_PC] + pc_offset));
+    registers[dr] = memory_get(memory_get(registers[R_PC] + pc_offset));
     update_flags(dr);
 }
 
+// similar to LD but the base instruction address is not from the PC counter
 void cmd_ldr(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
     uint16_t offset = sign_extend(instr & 0x3f, 6);
-    registers[dr] = mem_read(registers[sr1] + offset);
+    registers[dr] = memory_get(registers[sr1] + offset);
     update_flags(dr);
 }
 
+// load effective address
+// similar to LD but it loads the address
 void cmd_lea(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
@@ -315,29 +341,34 @@ void cmd_lea(uint16_t instr) {
     update_flags(dr);
 }
 
+// store the content of register sr into memory
+// with address being the sum of PC counter and PCoffset9
 void cmd_st(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
-    mem_write(registers[R_PC] + pc_offset, registers[dr]);
+    memory_set(registers[R_PC] + pc_offset, registers[dr]);
 }
 
+// similar to ST but the destination address is the content in
+// memory with sum of PC counter and PCoffset9 as address
 void cmd_sti(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
-    mem_write(mem_read(registers[R_PC] + pc_offset), registers[dr]);
+    memory_set(memory_get(registers[R_PC] + pc_offset), registers[dr]);
 }
 
+// similar to ST but the address is the sum of value in register sr1
 void cmd_str(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
     uint16_t offset = sign_extend(instr & 0x3f, 6);
-    mem_write(registers[sr1] + offset, registers[dr]);
+    memory_set(registers[sr1] + offset, registers[dr]);
 }
 
 void cmd_trap(uint16_t instr, int *running) {
     registers[R_R7] = registers[R_PC];
 
-    switch (instr & 0xFF) {
+    switch (instr & 0xff) {
         case TRAP_GETC:
             // read a single ASCII char
             registers[R_R0] = (uint16_t)getchar();
@@ -399,7 +430,7 @@ int main(int argc, const char *argv[]) {
     }
 
     for (int j = 1; j < argc; ++j) {
-        if (!read_image(argv[j])) {
+        if (!import_object_file(argv[j])) {
             printf("failed to load image: %s\n", argv[j]);
             exit(1);
         }
@@ -418,7 +449,7 @@ int main(int argc, const char *argv[]) {
     int running = 1;
     while (running) {
         // FETCH
-        uint16_t instr = mem_read(registers[R_PC]++);
+        uint16_t instr = memory_get(registers[R_PC]++);
         uint16_t op = instr >> 12;
 
         switch (op) {
