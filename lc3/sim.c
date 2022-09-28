@@ -7,15 +7,15 @@
 #   include <windows.h>
 #   include <conio.h>
 #elif defined(__linux__)
+#   include <termios.h>
 #   include <unistd.h>
 #   include <fcntl.h>
 #   include <sys/time.h>
 #   include <sys/types.h>
-#   include <sys/termios.h>
 #   include <sys/mman.h>
 #endif
 
-enum {
+enum Registers {
     R_R0 = 0,
     R_R1,
     R_R2,
@@ -29,13 +29,13 @@ enum {
     R_COUNT // number of registers
 };
 
-enum {
-    FL_POS = 1 << 0, // P
-    FL_ZRO = 1 << 1, // Z
-    FL_NEG = 1 << 2, // N
+enum ConditionFlag {
+    FL_POS = 1 << 0, // P (positive)
+    FL_ZRO = 1 << 1, // Z (zero)
+    FL_NEG = 1 << 2, // N (negative)
 };
 
-enum {
+enum Opcode {
     OP_BR = 0, // branch
     OP_ADD,    // add
     OP_LD,     // load
@@ -84,6 +84,8 @@ struct termios original_tio;
 
 void restore_input_buffering(void);
 
+// save the original input mode and
+// disable line-by-line input and showing input in terminal
 void disable_input_buffering(void) {
     atexit(restore_input_buffering);
 
@@ -109,6 +111,7 @@ void disable_input_buffering(void) {
 #endif
 }
 
+// restore the original input mode, used after the program exits
 void restore_input_buffering(void) {
 #if defined(_WIN32) || defined(__CYGWIN__)
     SetConsoleMode(input_handle, fdw_original_mode);
@@ -119,6 +122,7 @@ void restore_input_buffering(void) {
 #endif
 }
 
+// check if a key is pressed
 uint16_t check_key(void) {
 #if defined(_WIN32) || defined(__CYGWIN__)
     return WaitForSingleObject(input_handle, 1000) == WAIT_OBJECT_0 && _kbhit();
@@ -143,17 +147,21 @@ void handle_interrupt(int signal) {
     exit(-2);
 }
 
+// extend the sign bit (the leftmost bit) to remaining left bits
+// when x is cast to 16-bit register value
 uint16_t sign_extend(uint16_t x, int bit_count) {
     if ((x >> (bit_count - 1)) & 1) {
-        x |= (0xFFFF << bit_count);
+        x |= (0xffff << bit_count);
     }
     return x;
 }
 
+// swap the bit sequence in higher byte with that of lower byte
 uint16_t swap16(uint16_t x) {
     return (x << 8) | (x >> 8);
 }
 
+// update condition flags register
 void update_flags(uint16_t r) {
     if (registers[r] == 0) {
         registers[R_COND] = FL_ZRO;
@@ -165,6 +173,7 @@ void update_flags(uint16_t r) {
     }
 }
 
+// read the object file and store the instructions in memory
 void read_object_file(FILE *file) {
     // the origin tells us where in memory to place the image
     uint16_t origin;
@@ -183,8 +192,9 @@ void read_object_file(FILE *file) {
     }
 }
 
-int import_object_file(const char *file_path) {
-    FILE *file = fopen(file_path, "rb");
+// load an object file into memory
+int import_object_file(const char *filename) {
+    FILE *file = fopen(filename, "rb");
     if (!file) {
         return 0;
     };
@@ -194,10 +204,13 @@ int import_object_file(const char *file_path) {
     return 1;
 }
 
+// write a 16-bit value to memory at given address
 void memory_set(uint16_t address, uint16_t val) {
     memory[address] = val;
 }
 
+// get the content in memory block at given address
+// if the address is MR_KBSR, also check keyboard input and store it in MR_KBDR
 uint16_t memory_get(uint16_t address) {
     if (address == MR_KBSR) {
         if (check_key()) {
@@ -210,7 +223,7 @@ uint16_t memory_get(uint16_t address) {
     return memory[address];
 }
 
-// add two value and store the result in register
+// add two values and store the result in register
 void cmd_add(uint16_t instr) {
     // destination register
     uint16_t dr = (instr >> 9) & 0x7;
@@ -236,7 +249,7 @@ void cmd_add(uint16_t instr) {
     update_flags(dr);
 }
 
-// perform bitwise AND two value and store the result in register
+// perform bitwise and two values and store the result in register
 void cmd_and(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
@@ -249,7 +262,6 @@ void cmd_and(uint16_t instr) {
         uint16_t sr2 = instr & 0x7;
         registers[dr] = registers[sr1] & registers[sr2];
     }
-
     update_flags(dr);
 }
 
@@ -263,7 +275,7 @@ void cmd_not(uint16_t instr) {
     update_flags(dr);
 }
 
-// make machine jump to some instruction by an offset if conditions are met
+// make machine jump to another instruction by an offset if condition is met
 void cmd_br(uint16_t instr) {
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     uint16_t cond_flag = (instr >> 9) & 0x7;
@@ -305,8 +317,12 @@ void cmd_jsr(uint16_t instr) {
 // load a value into a register
 // the value is in memory with address being the sum of PC counter and offset
 void cmd_ld(uint16_t instr) {
+    // destination register (DR)
     uint16_t dr = (instr >> 9) & 0x7;
+
+    // PC offset 9
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
+
     registers[dr] = memory_get(registers[R_PC] + pc_offset);
     update_flags(dr);
 }
@@ -314,10 +330,9 @@ void cmd_ld(uint16_t instr) {
 // similar to LD but instead of loading the value in memory
 // the machine loads the content in memory with value being the address
 void cmd_ldi(uint16_t instr) {
-    // destination register (DR)
     uint16_t dr = (instr >> 9) & 0x7;
-    // PCoffset 9
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
+
     // add pc_offset to the current PC, look at that memory location to get the final address
     registers[dr] = memory_get(memory_get(registers[R_PC] + pc_offset));
     update_flags(dr);
@@ -333,7 +348,7 @@ void cmd_ldr(uint16_t instr) {
 }
 
 // load effective address
-// similar to LD but it loads the address
+// similar to LD but it loads the address instead
 void cmd_lea(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
@@ -365,7 +380,8 @@ void cmd_str(uint16_t instr) {
     memory_set(registers[sr1] + offset, registers[dr]);
 }
 
-void cmd_trap(uint16_t instr, int *running) {
+// interact with I/O devices (in this case, a terminal)
+void cmd_trap(uint16_t instr) {
     registers[R_R7] = registers[R_PC];
 
     switch (instr & 0xff) {
@@ -376,6 +392,7 @@ void cmd_trap(uint16_t instr, int *running) {
             break;
 
         case TRAP_OUT:
+            // write out a single char
             putc((char)registers[R_R0], stdout);
             fflush(stdout);
             break;
@@ -391,6 +408,8 @@ void cmd_trap(uint16_t instr, int *running) {
         } break;
 
         case TRAP_IN: {
+            // print out a prompt for inputting a char, echo the input char
+            // and the char is stored in register R0
             printf("Enter a character: ");
             char c = getchar();
             putc(c, stdout);
@@ -401,8 +420,7 @@ void cmd_trap(uint16_t instr, int *running) {
 
         case TRAP_PUTSP: {
             // one char per byte (two bytes per word)
-            // here we need to swap back to
-            // big endian format
+            // here we need to swap back to big endian format
             uint16_t *c = memory + registers[R_R0];
             while (*c) {
                 char char1 = (*c) & 0xff;
@@ -417,15 +435,15 @@ void cmd_trap(uint16_t instr, int *running) {
         case TRAP_HALT:
             puts("HALT");
             fflush(stdout);
-            *running = 0;
-            break;
+
+        default: exit(1);
     }
 }
 
 int main(int argc, const char *argv[]) {
     if (argc < 2) {
         // show usage string
-        printf("lc3sim [obj-file1] ...\n");
+        printf("%s [obj-file1] ...\n", argv[0]);
         exit(2);
     }
 
@@ -446,9 +464,7 @@ int main(int argc, const char *argv[]) {
     // 0x3000 is the default
     registers[R_PC] = PC_START;
 
-    int running = 1;
-    while (running) {
-        // FETCH
+    while (1) {
         uint16_t instr = memory_get(registers[R_PC]++);
         uint16_t op = instr >> 12;
 
@@ -466,10 +482,10 @@ int main(int argc, const char *argv[]) {
             case OP_ST: cmd_st(instr); break;
             case OP_STI: cmd_sti(instr); break;
             case OP_STR: cmd_str(instr); break;
-            case OP_TRAP: cmd_trap(instr, &running); break;
+            case OP_TRAP: cmd_trap(instr); break;
             case OP_RES:
             case OP_RTI:
-            default: abort();
+            default: exit(1);
         }
     }
     return 0;
