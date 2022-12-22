@@ -8,36 +8,19 @@ use url::Url;
 
 #[derive(Parser)]
 struct Flags {
-    #[clap(help = "The Youtube URL of video")]
+    #[clap(help="The Youtube URL of video")]
     url: String,
 
-    #[clap(
-        long = "name",
-        short = 'o',
-        help = "Name of the downloaded file",
-        default_value = ""
-    )]
+    #[clap(long="name", short='o', help="Name of the downloaded file", default_value="")]
     filename: String,
 
-    #[clap(
-        long = "audio",
-        short = 'a',
-        help = "Option to download and convert to audio file"
-    )]
+    #[clap(long="audio", short='a', help="Option to download and convert to audio file")]
     toaudio: bool,
 
-    #[clap(
-        long = "audiofmt",
-        short = 'f',
-        help = "Audio file format",
-        default_value = "mp3"
-    )]
+    #[clap(long="audiofmt", short='f', help="Audio file format", default_value="mp3")]
     audiofmt: String,
 
-    #[clap(
-        long = "bestvideo",
-        help = "Choose the best video quality. Download speed may be significantly slower"
-    )]
+    #[clap(long="bestvideo", help="Choose the best video quality. Download speed may be significantly slower")]
     bestvq: bool,
 }
 
@@ -77,27 +60,20 @@ fn main() {
 
     let direct_url = match get_download_url(&video_info, need_best_video) {
         Err(err) => {
-            println!(
-                "There's problem getting download link. Aborting.\n[{:?}]",
-                err
-            );
+            println!("There's problem getting download link. Aborting.\n[{:?}]", err);
             return;
         }
         Ok(url) => url,
     };
 
     if direct_url.vid.is_empty() || (need_best_video && direct_url.aud.is_empty()) {
-        println!(
-            "Cannot get the direct video URL.\nThe video may be restricted, deleted, \
-            or the YouTube API has been updated beyond this method of getting URL."
-        );
+        println!("Cannot get the direct video URL.\nThe video may be restricted, deleted, or the YouTube API has been updated ahead of this tool");
         return;
     }
 
     // if the user needs best video quality, download a separate adaptive video format and
     // the standard video stream for audio, then merge two tracks (somehow) into one
     // note that one cannot pick the best video quality and only need audio track
-
     if need_best_video {
         let video_filename = format!("{}-v.mp4", title);
         let audio_filename = format!("{}-a.mp4", title);
@@ -128,15 +104,8 @@ fn main() {
         // link them together using ffmpeg
         println!("Linking video and audio tracks into a complete video");
 
-        if let Err(err) = link_tracks(
-            video_pathbuf.as_path(),
-            audio_pathbuf.as_path(),
-            result_path,
-        ) {
-            println!(
-                "There's a problem linking the video tracks. Aborting\n[{:?}]",
-                err
-            );
+        if let Err(err) = link_tracks(video_pathbuf.as_path(), audio_pathbuf.as_path(), result_path) {
+            println!("There's a problem linking the video tracks. Aborting\n[{:?}]", err);
             return;
         }
     } else {
@@ -160,38 +129,27 @@ fn main() {
             let audio_file = Path::new(&audio_filename);
 
             if let Err(err) = save_audio(video_file, audio_file) {
-                println!(
-                    "Cannot delete the base video file. \
-                    Please delete it yourself if not needed.\n[{:?}]",
-                    err
-                );
+                println!("Cannot delete the base video file. Please delete it yourself if not needed.\n[{:?}]", err);
                 return;
             }
         }
     }
-
     println!("Download complete");
 }
 
 fn get_video_id(video_url: &str) -> anyhow::Result<&str> {
     // not going to be specific on several watch url cases
     // just the 'youtube.com/watch?v=' and 'youtu.be/' only
-    let re = regex::Regex::new(
-        r"(?:https://www\.youtube\.com/watch\?v=|https://youtu\.be/)(.*?)(&.*)*$",
-    )?;
-
+    let re = regex::Regex::new(r"(?:https://www\.youtube\.com/watch\?v=|https://youtu\.be/)(.*?)(&.*)*$")?;
     let id = re.captures(video_url).unwrap().get(1).unwrap();
-
     Ok(id.as_str())
 }
 
 fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
     // shamefully steal the player's access key from InnerTube
     // (found at https://github.com/tombulled/innertube/blob/main/innertube/config.py)
-    let player_url = "https://youtubei.googleapis.com/youtubei/v1/player\
-        ?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-
-    let request = ureq::post(player_url).send_json(ureq::json!({
+    let player_url = "https://youtubei.googleapis.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
+    let response = ureq::post(player_url).send_json(ureq::json!({
         "videoId": video_id,
         "context": {
             "client": {
@@ -200,17 +158,14 @@ fn get_video_info(video_id: &str) -> anyhow::Result<serde_json::Value> {
             }
         }
     }))?;
-
-    let respond = request.into_string()?;
-    let video_info: serde_json::Value = serde_json::from_str(respond.as_str())?;
+    let response_string = response.into_string()?;
+    let video_info: serde_json::Value = serde_json::from_str(response_string.as_str())?;
 
     Ok(video_info)
 }
 
 fn get_video_title(video_info: &serde_json::Value) -> anyhow::Result<&str> {
-    Ok(video_info["videoDetails"]["title"]
-        .as_str()
-        .unwrap_or("videoplayback"))
+    Ok(video_info["videoDetails"]["title"].as_str().unwrap_or("videoplayback"))
 }
 
 // mfw anyhow crate does not support multiple return values
@@ -219,10 +174,7 @@ struct DownloadUrl<'a> {
     aud: &'a str,
 }
 
-fn get_download_url(
-    video_info: &serde_json::Value,
-    need_best_video: bool,
-) -> anyhow::Result<DownloadUrl> {
+fn get_download_url(video_info: &serde_json::Value, need_best_video: bool) -> anyhow::Result<DownloadUrl> {
     if need_best_video {
         Ok(DownloadUrl {
             vid: get_best_video_download_url(video_info).unwrap_or(""),
@@ -244,9 +196,7 @@ fn get_best_video_download_url(video_info: &serde_json::Value) -> anyhow::Result
         None => return Ok(""),
     };
 
-    let vq: [&str; 8] = [
-        "tiny", "small", "medium", "large", "hd720", "hd1080", "hd1440", "hd2160",
-    ];
+    let vq: [&str; 8] = ["tiny", "small", "medium", "large", "hd720", "hd1080", "hd1440", "hd2160"];
 
     let mut last_vq = "".to_string();
     let mut target_url = "";
@@ -255,10 +205,8 @@ fn get_best_video_download_url(video_info: &serde_json::Value) -> anyhow::Result
         if !format["mimeType"].to_string().contains("video/") {
             continue;
         }
-
         let this_vq = format["quality"].as_str().unwrap_or("");
-        let improved = (last_vq.is_empty() && !this_vq.is_empty())
-            || is_better_quality(&vq, this_vq, last_vq.as_str());
+        let improved = (last_vq.is_empty() && !this_vq.is_empty()) || is_better_quality(&vq, this_vq, last_vq.as_str());
 
         if improved {
             target_url = format["url"].as_str().unwrap_or("");
@@ -278,11 +226,7 @@ fn get_std_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> 
     let mut target_url = "";
 
     let vq: [&str; 6] = ["tiny", "small", "medium", "large", "hd720", "hd1080"];
-    let aq: [&str; 3] = [
-        "AUDIO_QUALITY_LOW",
-        "AUDIO_QUALITY_MEDIUM",
-        "AUDIO_QUALITY_HIGH",
-    ];
+    let aq: [&str; 3] = ["AUDIO_QUALITY_LOW", "AUDIO_QUALITY_MEDIUM", "AUDIO_QUALITY_HIGH"];
 
     let mut last_vq = "".to_string();
     let mut last_aq = "".to_string();
@@ -291,21 +235,14 @@ fn get_std_download_url(video_info: &serde_json::Value) -> anyhow::Result<&str> 
         if !format["mimeType"].to_string().contains("video/") {
             continue;
         }
-
         let this_aq = format["audioQuality"].as_str().unwrap_or("");
         let this_vq = format["quality"].as_str().unwrap_or("");
 
-        let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty())
-            || is_better_quality(&aq, this_aq, last_aq.as_str());
-
-        let is_better_vq = (last_vq.is_empty() && !this_vq.is_empty())
-            || is_better_quality(&vq, this_vq, last_vq.as_str());
-
+        let is_better_aq = (last_aq.is_empty() && !this_aq.is_empty()) || is_better_quality(&aq, this_aq, last_aq.as_str());
+        let is_better_vq = (last_vq.is_empty() && !this_vq.is_empty()) || is_better_quality(&vq, this_vq, last_vq.as_str());
         let is_same_or_better_aq = is_better_aq || (this_aq == last_aq);
         let is_same_or_better_vq = is_better_vq || (this_vq == last_vq);
-
-        let improved =
-            (is_better_aq && is_same_or_better_vq) || (is_better_vq && is_same_or_better_aq);
+        let improved = (is_better_aq && is_same_or_better_vq) || (is_better_vq && is_same_or_better_aq);
 
         if improved {
             target_url = format["url"].as_str().unwrap_or("");
@@ -348,24 +285,17 @@ fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
     let init_request = ureq::get(parsed_url.as_str()).call()?;
 
     // request download url for video size
-    let video_size = init_request
-        .header("Content-Length")
-        .unwrap_or("0")
-        .parse::<u64>()?;
+    let video_size = init_request.header("Content-Length").unwrap_or("0").parse::<u64>()?;
 
     // create a progress bar during download
     let bar = ProgressBar::new(video_size);
-    bar.set_style(
-        ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] [{bar:40.white/black}] {bytes}/{total_bytes} ({eta})")
-            .unwrap()
-            .progress_chars("=>."),
+    bar.set_style(ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] [{bar:40.white/black}] {bytes}/{total_bytes} ({eta})")
+        .unwrap()
+        .progress_chars("=>."),
     );
 
     let video_file = Path::new(filename);
-
-    let request = ureq::get(parsed_url.as_str());
-
     // skip when the file has been downloaded, or remove the existing file
     if video_file.exists() {
         let file_size = video_file.metadata()?.len();
@@ -377,7 +307,7 @@ fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
         }
     }
 
-    let response = request.call()?;
+    let response = ureq::get(parsed_url.as_str()).call()?;
 
     let mut src = Downloader {
         reader: response.into_reader(),
@@ -398,13 +328,10 @@ fn download(url: &str, filename: &str) -> anyhow::Result<PathBuf> {
 
 fn save_audio(input_file: &Path, output_file: &Path) -> anyhow::Result<()> {
     Command::new("ffmpeg")
-        .arg("-i")
-        .arg(input_file)
-        .arg("-ar")
-        .arg("44100")
+        .arg("-i").arg(input_file)
+        .arg("-ar").arg("44100")
         .arg("-vn")
-        .arg("-loglevel")
-        .arg("quiet")
+        .arg("-loglevel").arg("quiet")
         .arg(output_file)
         .output()
         .expect("FFmpeg is missing, please install to convert to audio file");
@@ -416,19 +343,13 @@ fn save_audio(input_file: &Path, output_file: &Path) -> anyhow::Result<()> {
 // ref: https://stackoverflow.com/questions/11779490/
 fn link_tracks(input_video: &Path, input_audio: &Path, output_file: &Path) -> anyhow::Result<()> {
     Command::new("ffmpeg")
-        .arg("-i")
-        .arg(input_video)
-        .arg("-i")
-        .arg(input_audio)
-        .arg("-map")
-        .arg("0:v")
-        .arg("-map")
-        .arg("1:a")
-        .arg("-c:v")
-        .arg("copy")
+        .arg("-i").arg(input_video)
+        .arg("-i").arg(input_audio)
+        .arg("-map").arg("0:v")
+        .arg("-map").arg("1:a")
+        .arg("-c:v").arg("copy")
         .arg("-shortest")
-        .arg("-loglevel")
-        .arg("quiet")
+        .arg("-loglevel").arg("quiet")
         .arg(output_file)
         .output()
         .expect("FFmpeg is missing, please install to link video tracks");
