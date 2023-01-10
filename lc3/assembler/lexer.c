@@ -27,7 +27,7 @@ char get_escape_value(char c)
     return c;
 }
 
-void copy_token(Token *dst, Token *src)
+void token_copy(Token *dst, Token *src)
 {
     dst->size = src->size;
     dst->raw = malloc((dst->size + 1) * sizeof(char));
@@ -66,7 +66,7 @@ Token *token_from_string(char *line, uint16_t *index_ptr)
     return t;
 }
 
-int8_t is_end_of_word(char c)
+int8_t is_eow(char c)
 {
     int8_t eow = 0;
     static const char eowchars[] = {0, 13, '\t', '\n', ' ', ',', ';'};
@@ -83,7 +83,7 @@ Token *token_from_word(char *line, uint16_t *index_ptr)
     uint8_t j = 0;
     char tmp[MAX_TOKEN_LEN];
 
-    while (!is_end_of_word(line[i])) {
+    while (!is_eow(line[i])) {
         tmp[j] = line[i];
         j++;
         i++;
@@ -101,7 +101,7 @@ Token *token_from_word(char *line, uint16_t *index_ptr)
     return t;
 }
 
-int8_t is_end_of_line(char c)
+int8_t is_eol(char c)
 {
     int8_t eol = 0;
     static const char eolchars[] = {0, 10, 13, 59};
@@ -124,7 +124,7 @@ TokenBuf *tokenize(char *line)
     int8_t is_quote = 0;
     int8_t prev_is_sep = 1;
 
-    for (uint16_t i = 0; !is_end_of_line(line[i]); i++) {
+    for (uint16_t i = 0; !is_eol(line[i]); i++) {
         is_sep = (line[i] == ' ' || line[i] == '\t' || line[i] == ',');
         is_quote = (line[i] == '\"');
         
@@ -151,7 +151,7 @@ TokenBuf *tokenize(char *line)
     return buf;
 }
 
-void free_token(Token *t)
+void token_free(Token *t)
 {
     if (t) {
         if (t->raw) free(t->raw);
@@ -159,13 +159,13 @@ void free_token(Token *t)
     }
 }
 
-void free_token_buffer(TokenBuf *buf)
+void token_buffer_free(TokenBuf *buf)
 {
     if (!buf) return;
     if (buf->raw) {
         for (uint8_t i = 0; i < buf->size; i++) {
             if (buf->raw[i]->size) {
-                free_token(buf->raw[i]);
+                token_free(buf->raw[i]);
             }
         }
         free(buf->raw);
@@ -195,7 +195,7 @@ LineArr *linearr_new(void)
     return arr;
 }
 
-void linearr_set(LineArr *arr, TokenBuffer *buf, uint32_t ln)
+void linearr_set(LineArr *arr, TokenBuf *buf, uint32_t ln)
 {
     if (arr->size == arr->cap) {
         arr->cap *= 2;
@@ -207,17 +207,17 @@ void linearr_set(LineArr *arr, TokenBuffer *buf, uint32_t ln)
     arr->size++;
 }
 
-Line *linearr_get(LineArr *arr, uint32_t index)
+Line *linearr_get(LineArr *arr, uint32_t ind)
 {
-    if (index >= arr->size) return NULL;
-    return arr->raw[index]
+    if (ind >= arr->size) return NULL;
+    return arr->raw[ind]
 }
 
 void linearr_free(LineArr *arr)
 {
     if (!arr) return;
     for (uint32_t i = 0; i < arr->size; i++) {
-        free_token_buffer(arr->raw[i]->buf);
+        token_buffer_free(arr->raw[i]->buf);
         free(arr->raw[i]);
     }
     free(arr->raw);
