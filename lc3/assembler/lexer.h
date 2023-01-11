@@ -27,14 +27,14 @@ char get_escape_value(char c)
     return c;
 }
 
-void token_copy(Token *dst, Token *src)
+void token_copy(Token *dst, const Token *src)
 {
     dst->size = src->size;
     dst->raw = malloc((dst->size + 1) * sizeof(char));
     memcpy(dst->raw, src->raw, (dst->size + 1) * sizeof(char));
 }
 
-Token *token_from_string(char *line, uint16_t *index_ptr)
+Token *token_from_string(const char *line, uint16_t *index_ptr)
 {
     uint16_t i = *index_ptr;
     uint16_t j = 0;
@@ -77,7 +77,7 @@ int8_t is_eow(char c)
     return eow;
 }
 
-Token *token_from_word(char *line, uint16_t *index_ptr)
+Token *token_from_word(const char *line, uint16_t *index_ptr)
 {
     uint8_t i = *index_ptr;
     uint8_t j = 0;
@@ -113,7 +113,7 @@ int8_t is_eol(char c)
     return eol;
 }
 
-TokenBuf *tokenize(char *line)
+TokenBuf *tokenize(const char *line)
 {
     TokenBuf *buf = malloc(sizeof *buf);
     buf->size = 0;
@@ -210,7 +210,7 @@ void linearr_set(LineArr *arr, TokenBuf *buf, uint32_t ln)
 Line *linearr_get(LineArr *arr, uint32_t ind)
 {
     if (ind >= arr->size) return NULL;
-    return arr->raw[ind]
+    return arr->raw[ind];
 }
 
 void linearr_free(LineArr *arr)
@@ -223,3 +223,22 @@ void linearr_free(LineArr *arr)
     free(arr->raw);
     free(arr);
 }
+
+// test
+// #include <stdio.h>
+
+// int main(void)
+// {
+//     LineArr *arr = linearr_new();
+//     TokenBuf *buf = tokenize("MOV 1A,36");
+//     linearr_set(arr, buf, 1);
+//     TokenBuf *fub = tokenize("div 2b,\"sairir\"");
+//     linearr_set(arr, fub, 15);
+//     TokenBuf *ha = linearr_get(arr, 1)->buf;
+//     printf("%d\n", ha->size);
+//     for (int8_t i = 0; i < ha->size; i++) {
+//         printf("%s\n", ha->raw[i]->raw);
+//     }
+//     linearr_free(arr);
+//     return 0;
+// }
