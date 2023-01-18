@@ -8,24 +8,24 @@
 #define MAX_TOKEN_LEN 1025
 #define MAX_LINE_LEN 7175
 
-typedef struct token {
-    uint16_t size;
+typedef struct {
     char *str;
+    uint16_t size;
 } Token;
 
-typedef struct tokenlist {
-    uint8_t size;
+typedef struct {
     Token **arr;
+    uint8_t size;
 } TokenList;
 
 char get_escape_value(char c)
 {
-    static const char escape_chars[] = {'\'', '\"', '\?', '\\', 'a', 'b', 'f', 'n', 'r', 't', 'v'};
-    static const char escape_vals[] = {0x27, 0x22, 0x3F, 0x5C, 0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B};
+    static const char esc_chrs[] = {'\'', '\"', '\?', '\\', 'a', 'b', 'f', 'n', 'r', 't', 'v'};
+    static const char esc_vals[] = {0x27, 0x22, 0x3F, 0x5C, 0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B};
 
     for (uint8_t i = 0; i < 11; i++) {
-        if (c == escape_chars[i]) {
-            return escape_vals[i];
+        if (c == esc_chrs[i]) {
+            return esc_vals[i];
         }
     }
 
@@ -80,10 +80,10 @@ Token *token_from_string(const char *line, uint16_t *index_ptr)
 int8_t is_eow(char c)
 {
     int8_t eow = 0;
-    static const char eowchars[] = {0, 13, '\t', '\n', ' ', ',', ';'};
+    static const char eow_chrs[] = {0, 13, '\t', '\n', ' ', ',', ';'};
 
     for (uint8_t i = 0; i < 7; i++) {
-        if (c == eowchars[i]) {
+        if (c == eow_chrs[i]) {
             eow++;
         }
     }
@@ -120,10 +120,10 @@ Token *token_from_word(const char *line, uint16_t *index_ptr)
 int8_t is_eol(char c)
 {
     int8_t eol = 0;
-    static const char eolchars[] = {0, 10, 13, 59};
+    static const char eol_chrs[] = {0, 10, 13, 59};
 
     for (uint8_t i = 0; i < 4; i++) {
-        if (c == eolchars[i])
+        if (c == eol_chrs[i])
             eol++;
     }
     return eol;
@@ -191,12 +191,12 @@ void free_token_list(TokenList *tl)
     free(tl);
 }
 
-typedef struct line {
+typedef struct {
     TokenList *toks;
-    uint32_t lnum;
+    uint32_t lno;
 } Line;
 
-typedef struct linelist {
+typedef struct {
     Line **arr;
     uint32_t size;
     uint32_t cap;
@@ -215,7 +215,7 @@ LineList *create_line_list(void)
     return ll;
 }
 
-void add_line(LineList *ll, TokenList *tl, uint32_t lnum)
+void add_line(LineList *ll, TokenList *tl, uint32_t lno)
 {
     if (ll->size == ll->cap) {
         ll->cap *= 2;
@@ -224,7 +224,7 @@ void add_line(LineList *ll, TokenList *tl, uint32_t lnum)
 
     ll->arr[ll->size] = malloc(sizeof(Line));
     ll->arr[ll->size]->toks = tl;
-    ll->arr[ll->size]->lnum = lnum;
+    ll->arr[ll->size]->lno = lno;
 
     ll->size++;
 }
@@ -250,10 +250,10 @@ void free_line_list(LineList *ll)
     free(ll);
 }
 
-typedef struct outputbuffer {
+typedef struct {
     uint16_t *addrs;
     uint16_t *instrs;
-    uint32_t *lnums;
+    uint32_t *lnos;
     uint16_t size;
     uint16_t cap;
 } OutputBuffer;
@@ -269,23 +269,23 @@ OutputBuffer *create_output_buffer(void)
 
     ob->addrs = malloc(ob->cap * sizeof(uint16_t));
     ob->instrs = malloc(ob->cap * sizeof(uint16_t));
-    ob->lnums = malloc(ob->cap * sizeof(uint32_t));
+    ob->lnos = malloc(ob->cap * sizeof(uint32_t));
 
     return ob;
 }
 
-void add_to_output_buffer(OutputBuffer *ob, uint16_t addr, uint16_t instr, uint32_t lnum)
+void add_to_output_buffer(OutputBuffer *ob, uint16_t addr, uint16_t instr, uint32_t lno)
 {
     if (ob->size == ob->cap) {
         ob->cap *= 2;
         ob->addrs = realloc(ob->addrs, ob->cap * sizeof(uint16_t));
         ob->instrs = realloc(ob->instrs, ob->cap * sizeof(uint16_t));
-        ob->lnums = realloc(ob->lnums, ob->cap * sizeof(uint32_t));
+        ob->lnos = realloc(ob->lnos, ob->cap * sizeof(uint32_t));
     }
 
     ob->addrs[ob->size] = addr;
     ob->instrs[ob->size] = instr;
-    ob->lnums[ob->size] = lnum;
+    ob->lnos[ob->size] = lno;
 
     ob->size++;
 }
@@ -301,13 +301,13 @@ void free_output_buffer(OutputBuffer *ob)
     if (ob->instrs) {
         free(ob->instrs);
     }
-    if (ob->lnums) {
-        free(ob->lnums);
+    if (ob->lnos) {
+        free(ob->lnos);
     }
     free(ob);
 }
 
-typedef struct filelist {
+typedef struct {
     FILE *src;
     FILE *sym;
     FILE *obj;
@@ -448,7 +448,7 @@ void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
             break;
         }
 
-        if (idx != lim && ob->lnums[idx] == ln) {
+        if (idx != lim && ob->lnos[idx] == ln) {
             uint16_t instr = ob->instrs[idx];
             uint16_t addr = ob->addrs[idx];
             fprintf(lst, " x%04X  | x%04X | %s%s%s%s ", addr, instr, binseq(instr));
@@ -459,7 +459,7 @@ void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
 
         fprintf(lst, "| %4d | %s", ln, line);
 
-        while (idx != lim && ob->lnums[idx] == ln) {
+        while (idx != lim && ob->lnos[idx] == ln) {
             uint16_t instr = ob->instrs[idx];
             fprintf(lst, "        | x%04X | %s%s%s%s |      |\n", instr, binseq(instr));
             idx++;
@@ -467,12 +467,12 @@ void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
     }
 }
 
-typedef struct symbol {
+typedef struct {
     Token *sym;
     uint16_t addr;
 } Symbol;
 
-typedef struct symboltable {
+typedef struct {
     Symbol **arr;
     uint32_t size;
     uint32_t cap;
@@ -542,16 +542,30 @@ Token *exist_symbol(SymbolTable *st, uint16_t addr)
 }
 
 enum Opcode {
-    BR,    ADD,   LD,    ST,
-    JSR,   AND,   LDR,   STR,
-    RTI,   NOT,   LDI,   STI,
-    JMP,   NVLD,  LEA,   TRAP,
-    TRAPS, JSRR,  RET
+    OP_BR = 0,  // branch
+    OP_ADD,     // add
+    OP_LD,      // load
+    OP_ST,      // store
+    OP_JSR,     // jump register
+    OP_AND,     // bitwise and
+    OP_LDR,     // load register
+    OP_STR,     // store register
+    OP_RTI,     // return from interrupt (restricted)
+    OP_NOT,     // bitwise not
+    OP_LDI,     // load indirect
+    OP_STI,     // store indirect
+    OP_JMP,     // jump
+    OP_RES,     // reserved
+    OP_LEA,     // load effective address
+    OP_TRAP,    // execute trap
+    OP_TRAPS,   // TRAP
+    OP_JSRR,    // JSR
+    OP_RET,
 };
 
 int8_t is_register(Token *t)
 {
-    const char *regs[] = {
+    static const char *regs[] = {
         "R0", "r0",
         "R1", "r1",
         "R2", "r2",
@@ -631,7 +645,7 @@ int8_t is_trap(Token *t)
 
 int8_t is_opcode(Token *t)
 {
-    const char *ops[] = {
+    static const char *ops[] = {
         "BR", "br",
         "ADD", "add",
         "LD", "ld",
@@ -661,13 +675,13 @@ int8_t is_opcode(Token *t)
 
     if (ret < 0) {
         if (is_branch(t) >= 0) {
-            ret = BR;
+            ret = OP_BR;
         } else if (is_trap(t) >= 0) {
-            ret = TRAPS;
+            ret = OP_TRAPS;
         } else if (!strcmp(t->str, "JSRR") || !strcmp(t->str, "jsrr")) {
-            ret = JSRR;
+            ret = OP_JSRR;
         } else if (!strcmp(t->str, "RET") || !strcmp(t->str, "ret")) {
-            ret = RET;
+            ret = OP_RET;
         }
     } else if (ret == NVLD) {
         ret = -1;
