@@ -20,8 +20,14 @@ typedef struct {
 
 char get_escape_value(char c)
 {
-    static const char esc_chrs[] = {'\'', '\"', '\?', '\\', 'a', 'b', 'f', 'n', 'r', 't', 'v'};
-    static const char esc_vals[] = {0x27, 0x22, 0x3F, 0x5C, 0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B};
+    static const char esc_chrs[] = {
+        '\'', '\"', '\?', '\\',
+        'a', 'b', 'f', 'n', 'r', 't', 'v'
+    };
+    static const char esc_vals[] = {
+        0x27, 0x22, 0x3F, 0x5C,
+        0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B
+    };
 
     for (uint8_t i = 0; i < 11; i++) {
         if (c == esc_chrs[i]) {
@@ -35,12 +41,7 @@ char get_escape_value(char c)
 void copy_token(Token *dst, const Token *src)
 {
     dst->size = src->size;
-
-    if (dst->str) {
-        dst->str = realloc(dst->str, dst->size * sizeof(char));
-    } else {
-        dst->str = malloc(dst->size * sizeof(char));
-    }
+    dst->str = realloc(dst->str, dst->size * sizeof(char));
     memcpy(dst->str, src->str, dst->size * sizeof(char));
 }
 
@@ -80,7 +81,9 @@ Token *token_from_string(const char *line, uint16_t *index_ptr)
 int8_t is_eow(char c)
 {
     int8_t eow = 0;
-    static const char eow_chrs[] = {0, 13, '\t', '\n', ' ', ',', ';'};
+    static const char eow_chrs[] = {
+        0, 13, '\t', '\n', ' ', ',', ';'
+    };
 
     for (uint8_t i = 0; i < 7; i++) {
         if (c == eow_chrs[i]) {
@@ -123,8 +126,9 @@ int8_t is_eol(char c)
     static const char eol_chrs[] = {0, 10, 13, 59};
 
     for (uint8_t i = 0; i < 4; i++) {
-        if (c == eol_chrs[i])
+        if (c == eol_chrs[i]) {
             eol++;
+        }
     }
     return eol;
 }
@@ -143,7 +147,7 @@ TokenList *tokenize(const char *line)
     for (uint16_t i = 0; !is_eol(line[i]); i++) {
         is_sep = (line[i] == ' ' || line[i] == '\t' || line[i] == ',');
         is_quote = (line[i] == '\"');
-        
+
         if (is_quote) {
             i++;
             tl->arr[tl->size] = token_from_string(line, &i);
@@ -157,7 +161,8 @@ TokenList *tokenize(const char *line)
         }
 
         if (need_token) {
-            tl->arr = realloc(tl->arr, (tl->size + 1) * sizeof(Token *));
+            tl->arr = realloc(tl->arr,
+                    (tl->size + 1) * sizeof(Token *));
             need_token = 0;
         }
         prev_is_sep = is_sep;
@@ -274,13 +279,17 @@ OutputBuffer *create_output_buffer(void)
     return ob;
 }
 
-void add_to_output_buffer(OutputBuffer *ob, uint16_t addr, uint16_t instr, uint32_t lno)
+void add_to_output_buffer(
+    OutputBuffer *ob,
+    uint16_t addr,
+    uint16_t instr,
+    uint32_t lno)
 {
     if (ob->size == ob->cap) {
         ob->cap *= 2;
-        ob->addrs = realloc(ob->addrs, ob->cap * sizeof(uint16_t));
-        ob->instrs = realloc(ob->instrs, ob->cap * sizeof(uint16_t));
-        ob->lnos = realloc(ob->lnos, ob->cap * sizeof(uint32_t));
+        ob->addrs = realloc(ob->addrs, ob->cap * sizeof uint16_t);
+        ob->instrs = realloc(ob->instrs, ob->cap * sizeof uint16_t);
+        ob->lnos = realloc(ob->lnos, ob->cap * sizeof uint32_t);
     }
 
     ob->addrs[ob->size] = addr;
@@ -337,28 +346,28 @@ uint8_t open_file_list(FileList *fl, char *filename)
 
     fl->src = fopen(filename, "r");
     if (fl->src == NULL) {
-        printf("Unable to open assembly file: %s!\n", filename);
+        printf("Couldn't open assembly file: %s!\n", filename);
         err++;
     }
 
     replace_extension(filename, ".sym");
     fl->sym = fopen(filename, "w");
     if (fl->sym == NULL) {
-        printf("Unable to create symbol table file: %s!\n", filename);
+        printf("Couldn't create symbol table file: %s!\n", filename);
         err++;
     }
 
     replace_extension(filename, ".obj");
     fl->obj = fopen(filename, "w");
     if (fl->obj == NULL) {
-        printf("Unable to create object file: %s!\n", filename);
+        printf("Couldn't create object file: %s!\n", filename);
         err++;
     }
 
     replace_extension(filename, ".lst");
     fl->lst = fopen(filename, "w");
     if (fl->lst == NULL) {
-        printf("Unable to create list file: %s!\n", filename);
+        printf("Couldn't create listing file: %s!\n", filename);
         err++;
     }
 
@@ -420,20 +429,20 @@ void write_object(OutputBuffer *ob, FILE *obj)
     fwrite(tmp, sizeof(uint8_t), byte_cnt, obj);
 }
 
+static const char *binseq[16] = {
+    "0000", "0001", "0010", "0011",
+    "0100", "0101", "0110", "0111",
+    "1000", "1001", "1010", "1011",
+    "1100", "1101", "1110", "1111"
+};
+
 void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
 {
-    static const char *bin[16] = {
-        "0000", "0001", "0010", "0011",
-        "0100", "0101", "0110", "0111",
-        "1000", "1001", "1010", "1011",
-        "1100", "1101", "1110", "1111"
-    };
-
-    #define binseq(x) \
-        bin[x >> 12], \
-        bin[(x >> 8) & 0xf], \
-        bin[(x >> 4) & 0xf], \
-        bin[x & 0xf]
+    #define PRbinseq(x) \
+        binseq[x >> 12], \
+        binseq[(x >> 8) & 0xf], \
+        binseq[(x >> 4) & 0xf], \
+        binseq[x & 0xf]
 
     char line[MAX_LINE_LEN + 1];
     uint16_t idx = 0; // (doubt)
@@ -451,7 +460,8 @@ void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
         if (idx != lim && ob->lnos[idx] == ln) {
             uint16_t instr = ob->instrs[idx];
             uint16_t addr = ob->addrs[idx];
-            fprintf(lst, " x%04X  | x%04X | %s%s%s%s ", addr, instr, binseq(instr));
+            fprintf(lst, " x%04X  | x%04X | %s%s%s%s ",
+                    addr, instr, PRbinseq(instr));
             idx++;
         } else {
             fprintf(lst, "        |       |                  ");
@@ -461,7 +471,8 @@ void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
 
         while (idx != lim && ob->lnos[idx] == ln) {
             uint16_t instr = ob->instrs[idx];
-            fprintf(lst, "        | x%04X | %s%s%s%s |      |\n", instr, binseq(instr));
+            fprintf(lst, "        | x%04X | %s%s%s%s |      |\n",
+                    instr, PRbinseq(instr));
             idx++;
         }
     }
@@ -525,7 +536,7 @@ uint16_t symbol_address(SymbolTable *st, Token *t)
 {
     for (uint16_t i = 0; i < st->size; i++) {
         if (!strcmp(st->arr[i]->sym->str, t->str)) {
-            return st->arr[i]->addr; 
+            return st->arr[i]->addr;
         }
     }
     return 0;
@@ -561,6 +572,14 @@ enum Opcode {
     OP_TRAPS,   // TRAP
     OP_JSRR,    // JSR
     OP_RET,
+};
+
+enum PseudoOpcode {
+    PS_ORIG,
+    PS_END,
+    PS_BLKW,
+    PS_FILL,
+    PS_STRINGZ,
 };
 
 int8_t is_register(Token *t)
@@ -690,6 +709,26 @@ int8_t is_opcode(Token *t)
     return ret;
 }
 
+int8_t is_pseudo(Token *t)
+{
+    static const char *pseudos[] = {
+        ".ORIG", ".orig",
+        ".END", ".end",
+        ".BLKW", ".blkw",
+        ".FILL", ".fill",
+        ".STRINGZ", ".stringz"
+    }
+
+    int8_t ret = -1;
+
+    for (int8_t i = 0; i < 10; i++) {
+        if (!strcmp(t->str, pseudos[i])) {
+            ret = i / 2;
+            break;
+        }
+    }
+    return ret;
+}
 
 uint8_t is_valid_label(Token *t)
 {
@@ -708,4 +747,199 @@ uint8_t is_valid_label(Token *t)
         return 0;
     }
     return 1;
+}
+
+enum OffsetType {
+    OFF_RES,
+    OFF_HEX,
+    OFF_BIN,
+    OFF_DEC,
+};
+
+int16_t twocomp(const char *s)
+{
+    static const int N = 16;
+    static char seq[17];
+
+    memset(seq, 0, 17 * sizeof(char));
+
+    int16_t rep = 0;
+    size_t len = strlen(s);
+    size_t i = len - 1, j = 0;
+
+    while (j < len && j < N) {
+        seq[j] = s[i] - '0';
+        j++;
+        i--;
+    }
+    for (i = 0; i <= N-2; i++) {
+        rep += seq[i] * (1 << i);
+    }
+    rep -= seq[N-1] * (1 << (N-1));
+
+    return rep;
+}
+
+int8_t hex_index(char c)
+{
+    static const char hex[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7',
+        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+    };
+
+    for (int8_t i = 0; i < 16; i++) {
+        if (i < 10 && c == hex[i]) {
+            return i;
+        } else if (i >= 10 && (c == hex[i] || c == hex[i] + 32)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int16_t parse_hex(const char *s) {
+    static const int N = 4;
+    static char seq[5];
+    static char bin[17];
+
+    memset(seq, 0, 5 * sizeof(char));
+    memset(bin, 0, 17 * sizeof(char));
+    
+    char *offset = strchr(s, 'x');
+    if (offset == NULL) {
+        offset = strchr(s, 'X');
+    }
+    offset++;
+    size_t len = strlen(offset);
+    size_t i = len - 1, j = 0;
+
+    while (j < len && j < N) {
+        seq[j] = (char)hex_index(offset[i]);
+        j++;
+        i--;
+    }
+    i = 0;
+    char *tmp = bin + 16;
+    while (i < N) {
+        tmp -= 4 * sizeof(char);
+        memcpy(tmp, binseq[seq[i]], 4 * sizeof(char));
+        i++;
+    }
+
+    return twocomp(bin);
+}
+
+int16_t parse_bin(char *s) {
+    char *offset = strchr(s, 'b');
+    if (offset == NULL) {
+        offset = strchr(s, 'B');
+    }
+    offset++;
+    return twocomp(offset);
+}
+
+int16_t parse_dec(char *s) {
+    int8_t neg = 0;
+    char *offset = strchr(s, '#');
+
+    if (offset == NULL) {
+        offset = s;
+    } else {
+        offset++;
+    }
+
+    if (offset[0] == '-') {
+        neg = 1;
+        offset++;
+    }
+
+    int16_t rep = 0;
+    size_t i = 0;
+
+    while (offset[i] != '\0') {
+        rep = rep * 10 + (offset[i] - '0');
+        i++;
+    }
+    if (neg) {
+        rep = -rep;
+    }
+    return rep;
+}
+
+int16_t parse_offset(uint8_t offset_type, Token *t)
+{
+    char *s = t->str;
+    int16_t val = 0;
+
+    if (offset_type == OFF_HEX) {
+        val = parse_hex(s);
+    } else if (offset_type == OFF_BIN) {
+        val = parse_bin(s);
+    } else if (offset_type == OFF_DEC) {
+        val = parse_dec(s);
+    }
+    return val;
+}
+
+uint8_t offset_type(Token *t)
+{
+    char *s = t->str;
+    char *offset;
+
+    if ((offset = strchr(s, 'x')) || (offset = strchr(s, 'X'))) {
+        offset++;
+        for (; *offset; offset++) {
+            if (offset_hex_index(*offset) == -1) {
+                return OFF_RES;
+            }
+        }
+        return OFF_HEX;
+    } else if ((offset = strchr(s, 'b')) || (offset = strchr(s, 'B'))) {
+        offset++;
+        for (; *offset; offset++) {
+            if (*offset != '0' && *offset != '1') {
+                return OFF_RES;
+            }
+        }
+        return OFF_BIN;
+    } else if (s != NULL) {
+        offset = strchr(s, '#');
+        if (offset == NULL) {
+            offset = s;
+        } else {
+            offset++;
+        }
+
+        if (*offset == '-') {
+            offset++;
+        }
+        for (; *offset; offset++) {
+            if (!isdigit(*offset)) {
+                return OFF_RES;
+            }
+        }
+        return OFF_DEC;
+    } else {
+        return OFF_RES;
+    }
+}
+
+uint16_t find_orig(FileList *fl, uint32_t *lno)
+{
+    uint16_t orig = 0;
+    char line[MAX_LINE_LEN + 1];
+    uint32_t i;
+
+    for (i = *ln; fgets(line, MAX_LINE_LEN + 1, fl->src) != NULL; i++) {
+        TokenList *tokens = tokenize(line);
+        if (tokens->size == 0) {
+            free_token_list(tokens);
+            continue;
+        }
+
+        int8_t pseudo_idx = is_pseudo(tokens->arr[0]);
+        if (pseudo_idx == ORIG) {
+
+        }
+    }
 }
