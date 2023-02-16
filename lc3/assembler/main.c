@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <assert.h>
 
 #define MAX_TOKEN_NUM 7
 #define MAX_TOKEN_LEN 1025
@@ -21,28 +22,18 @@ typedef struct {
 char get_escape_value(char c)
 {
     static const char esc_chrs[] = {
-        '\'', '\"', '\?', '\\',
-        'a', 'b', 'f', 'n', 'r', 't', 'v'
+        '\'', '\"', '\?', '\\', 'a', 'b', 'f', 'n', 'r', 't', 'v'
     };
     static const char esc_vals[] = {
-        0x27, 0x22, 0x3F, 0x5C,
-        0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B
+        0x27, 0x22, 0x3F, 0x5C, 0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B
     };
 
-    for (uint8_t i = 0; i < 11; i++) {
+    for (int8_t i = 0; i < 11; i++) {
         if (c == esc_chrs[i]) {
             return esc_vals[i];
         }
     }
-
     return c;
-}
-
-void copy_token(Token *dst, const Token *src)
-{
-    dst->size = src->size;
-    dst->str = realloc(dst->str, dst->size * sizeof(char));
-    memcpy(dst->str, src->str, dst->size * sizeof(char));
 }
 
 Token *token_from_string(const char *line, uint16_t *index_ptr)
@@ -123,7 +114,7 @@ Token *token_from_word(const char *line, uint16_t *index_ptr)
 int8_t is_eol(char c)
 {
     int8_t eol = 0;
-    static const char eol_chrs[] = {0, 10, 13, 59};
+    static const char eol_chrs[] = { '\0', '\n', '\r', ';' };
 
     for (uint8_t i = 0; i < 4; i++) {
         if (c == eol_chrs[i]) {
@@ -161,8 +152,7 @@ TokenList *tokenize(const char *line)
         }
 
         if (need_token) {
-            tl->arr = realloc(tl->arr,
-                    (tl->size + 1) * sizeof(Token *));
+            tl->arr = realloc(tl->arr, (tl->size + 1) * sizeof(Token *));
             need_token = 0;
         }
         prev_is_sep = is_sep;
@@ -186,11 +176,13 @@ void free_token_list(TokenList *tl)
         return;
     }
     if (tl->arr) {
+        assert(tl->arr != NULL);
         for (uint8_t i = 0; i < tl->size; i++) {
             if (tl->arr[i]->size) {
                 free_token(tl->arr[i]);
             }
         }
+        // puts("cleared tokens");
         free(tl->arr);
     }
     free(tl);
@@ -247,12 +239,20 @@ void free_line_list(LineList *ll)
     if (!ll) {
         return;
     }
+    uint32_t cnt_clear = 0;
     for (uint32_t i = 0; i < ll->size; i++) {
         free_token_list(ll->arr[i]->toks);
+        // puts("can you even clear the tokens?");
         free(ll->arr[i]);
+        // puts("and the pointers?");
+        // cnt_clear++;
+        // printf("token buffers cleared %d\n", cnt_clear);
     }
+    // printf("token buffers cleared %d\n", cnt_clear);
     free(ll->arr);
+    // puts("can you clear the array?");
     free(ll);
+    // puts("and the object itself?");
 }
 
 typedef struct {
@@ -287,9 +287,9 @@ void add_to_output_buffer(
 {
     if (ob->size == ob->cap) {
         ob->cap *= 2;
-        ob->addrs = realloc(ob->addrs, ob->cap * sizeof uint16_t);
-        ob->instrs = realloc(ob->instrs, ob->cap * sizeof uint16_t);
-        ob->lnos = realloc(ob->lnos, ob->cap * sizeof uint32_t);
+        ob->addrs = realloc(ob->addrs, ob->cap * 2);
+        ob->instrs = realloc(ob->instrs, ob->cap * 2);
+        ob->lnos = realloc(ob->lnos, ob->cap * 4);
     }
 
     ob->addrs[ob->size] = addr;
@@ -500,9 +500,12 @@ void add_symbol(SymbolTable *st, Token *label, uint16_t addr)
 
     st->arr[st->size] = malloc(sizeof(Symbol));
 
-    st->arr[st->size]->label = malloc(sizeof(Token));
-    copy_token(st->arr[st->size]->label, label);
-    st->arr[st->size]->addr = addr;
+    Symbol *s = st->arr[st->size];
+    s->sym = malloc(sizeof(Token));
+    s->sym->size = label->size;
+    s->sym->str = malloc(label->size + 1);
+    memcpy(s->sym->str, label->str, label->size + 1);
+    s->addr = addr;
 
     st->size++;
 }
@@ -702,7 +705,7 @@ int8_t is_opcode(Token *t)
         } else if (!strcmp(t->str, "RET") || !strcmp(t->str, "ret")) {
             ret = OP_RET;
         }
-    } else if (ret == NVLD) {
+    } else if (ret == OP_RES) {
         ret = -1;
     }
 
@@ -717,7 +720,7 @@ int8_t is_pseudo(Token *t)
         ".BLKW", ".blkw",
         ".FILL", ".fill",
         ".STRINGZ", ".stringz"
-    }
+    };
 
     int8_t ret = -1;
 
@@ -730,14 +733,14 @@ int8_t is_pseudo(Token *t)
     return ret;
 }
 
-uint8_t is_valid_label(Token *t)
+uint8_t is_valid_symbol(Token *t)
 {
     char *s = t->str;
     if (!isalpha(s[0]) && s[0] != '_') {
         return 0;
     }
 
-    for (uint16_t i = 0; str[i] != '\0'; i++) {
+    for (uint16_t i = 0; s[i] != '\0'; i++) {
         if (!isalnum(s[i]) && s[i] != '_') {
             return 0;
         }
@@ -797,14 +800,15 @@ int8_t hex_index(char c)
     return -1;
 }
 
-int16_t parse_hex(const char *s) {
+int16_t parse_hex(const char *s)
+{
     static const int N = 4;
     static char seq[5];
     static char bin[17];
 
     memset(seq, 0, 5 * sizeof(char));
     memset(bin, 0, 17 * sizeof(char));
-    
+
     char *offset = strchr(s, 'x');
     if (offset == NULL) {
         offset = strchr(s, 'X');
@@ -829,7 +833,8 @@ int16_t parse_hex(const char *s) {
     return twocomp(bin);
 }
 
-int16_t parse_bin(char *s) {
+int16_t parse_bin(char *s)
+{
     char *offset = strchr(s, 'b');
     if (offset == NULL) {
         offset = strchr(s, 'B');
@@ -838,7 +843,8 @@ int16_t parse_bin(char *s) {
     return twocomp(offset);
 }
 
-int16_t parse_dec(char *s) {
+int16_t parse_dec(char *s)
+{
     int8_t neg = 0;
     char *offset = strchr(s, '#');
 
@@ -889,7 +895,7 @@ uint8_t offset_type(Token *t)
     if ((offset = strchr(s, 'x')) || (offset = strchr(s, 'X'))) {
         offset++;
         for (; *offset; offset++) {
-            if (offset_hex_index(*offset) == -1) {
+            if (hex_index(*offset) == -1) {
                 return OFF_RES;
             }
         }
@@ -924,7 +930,11 @@ uint8_t offset_type(Token *t)
     }
 }
 
-uint16_t find_orig(FileList *fl, uint32_t *lno)
+uint16_t find_orig(
+    FileList *fl,
+    OutputBuffer *ob,
+    LineList *ll,
+    uint32_t *ln)
 {
     uint16_t orig = 0;
     char line[MAX_LINE_LEN + 1];
@@ -938,8 +948,207 @@ uint16_t find_orig(FileList *fl, uint32_t *lno)
         }
 
         int8_t pseudo_idx = is_pseudo(tokens->arr[0]);
-        if (pseudo_idx == ORIG) {
+        if (pseudo_idx == PS_ORIG) {
+            orig = parse_offset(OFF_HEX, tokens->arr[1]);
+            add_to_output_buffer(ob, 0, orig, i);
+            add_line(ll, tokens, i);
+            break;
+        }
+        memset(line, 0, MAX_LINE_LEN + 1);
+    }
+    *ln = i;
+    return orig;
+}
 
+const uint8_t opcode_operand_cnt[] = {
+    1,  // BR
+    3,  // ADD
+    2,  // LD
+    2,  // ST
+    1,  // JSR
+    3,  // AND
+    3,  // LDR
+    3,  // STR
+    0,  // RTI
+    2,  // NOT
+    2,  // LDI
+    2,  // STI
+    1,  // JMP
+    0,  // RES
+    2,  // LEA
+    1,  // TRAP
+    0,  // TRAPS
+    1,  // JSRR
+    0   // RET
+};
+
+const uint8_t pseudo_operand_cnt[] = {
+    1,  // .ORIG
+    0,  // .END
+    1,  // .BLKW
+    1,  // .FILL
+    1   // .STRINGZ
+};
+
+uint8_t validate_line(
+    LineList *ll,
+    SymbolTable *st,
+    TokenList *tl,
+    uint16_t *addr,
+    uint32_t ln)
+{
+    uint8_t found_end = 0;
+    char *tmp;
+    int8_t opcode = -1, pseudo = -1;
+    int8_t operand_exp = -1;
+    int8_t operand_cnt = 0;
+    Token *tok;
+
+    for (uint8_t i = 0; i < tl->size; i++) {
+        tok = tl->arr[i];
+
+        if (i == 0 && is_valid_symbol(tok)) {
+            // printf("valid symbol %s\n", tok->str);
+            Token *dupe = exist_symbol(st, *addr);
+            if (dupe == NULL) {
+                add_symbol(st, tok, *addr);
+            } else {
+                // warning
+                printf("Can't add %s to symbol table as %s already points to address %"PRIu16"\n",
+                        tok->str, dupe->str, *addr);
+            }
+
+            operand_exp = 0;
+            tmp = tok->str;
+        } else if ((opcode = is_opcode(tok)) != -1) {
+            operand_exp = opcode_operand_cnt[opcode];
+            tmp = tok->str;
+            *addr += 1;
+        } else if ((pseudo = is_pseudo(tok)) != -1) {
+            operand_exp = pseudo_operand_cnt[pseudo];
+            tmp = tok->str;
+
+            if (pseudo == PS_END) {
+                found_end = 1;
+                break;
+            }
+            if (i + 1 >= tl->size) {
+                break;
+            }
+            if (pseudo == PS_STRINGZ) {
+                *addr += tl->arr[i+1]->size;
+                i++;
+                operand_cnt++;
+            } else if (pseudo == PS_BLKW) {
+                uint8_t type = offset_type(tl->arr[i+1]);
+                if (type != OFF_RES) {
+                    *addr += parse_offset(type, tl->arr[i+1]);
+                }
+            } else if (pseudo == PS_FILL) {
+                *addr += 1;
+            } else {
+                // warning: invalid pseudo-op (how?)
+            }
+        } else if (is_register(tok) != -1
+                || offset_type(tok) != -1
+                || is_valid_symbol(tok)) {
+            operand_cnt++;
+        } else {
+            // error: unknown token
         }
     }
+
+    if (operand_exp == -1) {
+
+    } else if (operand_cnt > operand_exp) {
+        // warning: more operands than expected
+    } else if (operand_cnt < operand_exp) {
+        // error: less operands than expected
+    }
+
+    add_line(ll, tl, ln);
+
+    return found_end;
+}
+
+uint8_t pass_one(
+    FileList *fl,
+    OutputBuffer *ob,
+    LineList *ll,
+    SymbolTable *st,
+    uint16_t *addr,
+    uint32_t *ln)
+{
+    char line[MAX_LINE_LEN + 1];
+    uint32_t i;
+    uint8_t end = 0;
+
+    for (i = *ln; fgets(line, MAX_LINE_LEN + 1, fl->src) != NULL; i++) {
+        TokenList *tokens = tokenize(line);
+        if (tokens->size == 0) {
+            free_token_list(tokens);
+            continue;
+        }
+        end = validate_line(ll, st, tokens, addr, i);
+        // for (uint16_t i = 0; i < tokens->size; i++) {
+            // printf("%s ", tokens->arr[i]->str);
+        // }
+        // puts("");
+        if (end) {
+            break;
+        }
+    }
+    return 0;
+}
+
+#include <assert.h>
+
+int main(int argc, char **argv)
+{
+    // output buffer
+    // line list
+    // files
+    OutputBuffer *ob = create_output_buffer();
+    LineList *ll = create_line_list();
+    FileList *fl = malloc(sizeof *fl);
+    SymbolTable *st = create_symbol_table();
+
+    uint8_t err = open_file_list(fl, argv[1]);
+    assert(err == 0);
+
+    uint32_t ln = 1;
+
+    uint16_t addr = 0;
+    uint32_t orig = 0;
+    if (find_orig(fl, ob, ll, &ln)) {
+        addr = ob->instrs[0];
+        orig = ll->size;
+    }
+    // puts("yatta");
+
+    pass_one(fl, ob, ll, st, &addr, &ln);
+    // puts("before clean up");
+
+    // for (uint16_t i = 0; i < ll->size; i++) {
+        // assert(ll->arr[i]->toks != NULL);
+        // for (uint8_t j = 0; j < ll->arr[i]->toks->size; j++) {
+            // assert(ll->arr[i]->toks->arr[j] != NULL);
+            // printf("%s ", ll->arr[i]->toks->arr[j]->str);
+        // }
+        // puts("");
+    // }
+
+    // for (uint16_t i = 0; i < st->size; i++) {
+        // printf("label: %s, address: %d\n", st->arr[i]->sym->str, st->arr[i]->addr);
+    // }
+
+    // printf("line list size: %d\n", ll->size);
+
+    close_file_list(fl);
+    free(fl);
+    free_line_list(ll);
+    free_output_buffer(ob);
+    free_symbol_table(st);
+    // clean_output(argv[1]);
+    // puts("done?");
 }
