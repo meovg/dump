@@ -997,7 +997,7 @@ uint8_t validate_line(
     uint16_t *addr,
     uint32_t ln)
 {
-    uint8_t found_end = 0;
+    uint8_t end_found = 0;
     char *tmp;
     int8_t opcode = -1, pseudo = -1;
     int8_t operand_exp = -1;
@@ -1068,7 +1068,7 @@ uint8_t validate_line(
 
     add_line(ll, tl, ln);
 
-    return found_end;
+    return end_found;
 }
 
 uint8_t pass_one(
@@ -1101,7 +1101,265 @@ uint8_t pass_one(
     return 0;
 }
 
-#include <assert.h>
+const int8_t opcode_val[] = {
+    0,  // BR
+    1,  // ADD
+    2,  // LD
+    3,  // ST
+    4,  // JSR
+    5,  // AND
+    6,  // LDR
+    7,  // STR
+    8,  // RTI
+    9,  // NOT
+    10, // LDI
+    11, // STI
+    12, // JMP
+    13, // RES
+    14, // LEA
+    15, // TRAP
+    15, // TRAPS -> TRAP
+    4,  // JSRR -> JSR
+    12  // RET -> JMP
+};
+
+enum {
+    DstSrc  = 1,
+    Src1    = 1 << 1,
+    Src2    = 1 << 2,
+    PCoff9  = 1 << 3,
+    PCoff11 = 1 << 4,
+    Off6    = 1 << 5,
+    Cond    = 1 << 6,
+    Tvec8   = 1 << 7,
+};
+
+const uint8_t operand_mask[] = {
+    Cond    | PCoff9,               // BR
+    DstSrc  | Src1      | Src2,     // ADD
+    DstSrc  | PCoff9,               // LD
+    DstSrc  | PCoff9,               // ST
+    PCoff11,                        // JSR
+    DstSrc  | Src1      | Src2,     // AND
+    DstSrc  | Src1      | Off6,     // LDR
+    DstSrc  | Src1      | Off6,     // STR
+    0,                              // RTI
+    DstSrc  | Src1,                 // NOT
+    DstSrc  | PCoff9,               // LDI
+    DstSrc  | PCoff9,               // STI
+    Src1,                           // JMP
+    0,                              // RES
+    DstSrc  | PCoff9,               // LEA
+    Tvec8,                          // TRAP
+    Tvec8,                          // TRAPS -> TRAP
+    Src1,                           // JSRR
+    Src1                            // RET -> JMP
+};
+
+#define in_range_5_bit(x) ((-16 <= (x)) && ((x) <= 15))
+#define in_range_6_bit(x) ((-32 <= (x)) && ((x) <= 31))
+#define in_range_9_bit(x) ((-256 <= (x)) && ((x) <= 255))
+#define in_range_11_bit(x) ((-1024 <= (x)) && ((x) <= 1023))
+
+uint8_t generate_machine_code(
+    FileList *fl,
+    OutputBuffer *ob,
+    LineList *ll,
+    SymbolTable *st,
+    uint16_t *addr,
+    uint32_t i)
+{
+    uint8_t end_found = 0;
+    Line *l = get_line(ll, i);
+    uint32_t linenum = l->lno;
+    Token **tokens = l->toks->arr;
+    int8_t opcode = -1, pseudo = -1;
+
+    uint16_t sym_addr = symbol_address(st, tokens[0]);
+    if (sym_addr) {
+        if (l->toks->size == 1) {
+            return 0;
+        }
+        tokens++;
+    }
+
+    if ((opcode = is_opcode(token[0])) != -1) {
+        uint16_t ins = opcode_val[opcode] << 12;
+        uint8_t opmask = operand_mask[opcode];
+
+        if (opmask & DstSrc) {
+            int8_t reg = is_register(tokens[1]);
+            if (reg >= 0) {
+                ins |= reg << 9;
+            } else {
+                // error: dst/src not a register
+            }
+        }
+        if (opmask & Src1) {
+            int8_t reg = 0;
+            int8_t rhs = 0;
+
+            if (opcode == OP_RET) {
+                reg = 7;
+            } else if (opcode == OP_JMP || opcode == OP_JSRR) {
+                rhs = 1;
+            } else {
+                rhs = 2;
+            }
+
+            if (reg == 7 || (reg = is_register(tokens[rhs])) != -1) {
+                ins |= reg << 6;
+            } else {
+                // error: token[rhs] is not a register
+            }
+        }
+        if (opcode == OP_NOT) {
+            ins |= 0b11111;
+        }
+        if (opmask & Src2) {
+            int8_t reg = 0;
+            uint8_t type = 0;
+            if ((reg = is_register(tokens[3])) != -1) {
+                ins |= reg;
+            } else if ((type = offset_type(tokens[3])) != -1) {
+                int16_t imm5 = parse_offset(type, tokens[3]);
+                if (!in_range_5_bit(imm5)) {
+                    // error: immediate value cannot be represented in 5 bits
+                }
+                ins |= 1 << 5;
+                ins |= imm5 & 0b11111;
+            } else {
+                // error: not a valid argument for Src2
+            }
+        }
+        if (opmask & Cond) {
+            ins |= is_branch(tokens[0]) << 9;
+        }
+        if (opmask & PCoff9) {
+            uint8_t type = 0;
+            uint8_t rhs = opcode == OP_BR ? 1 : 2;
+            int16_t off = 0;
+
+            sym_addr = symbol_address(st, tokens[rhs]);
+            if (sym_addr) {
+                off = sym_addr - (*addr + 1);
+                if (!in_range_9_bit(off)) {
+                    // error: cannot be reprensented in 9 bits
+                }
+                ins |= off & 0b111111111;
+            } else if ((type = offset_type(tokens[rhs])) != -1) {
+                off = parse_offset(type, tokens[rhs]);
+                if (!in_range_9_bit(off)) {
+                    // error: cannot be represented in 9 bits
+                }
+                ins |= off & 0b111111111;
+            } else {
+                // error: tokens[rhs] not a valid argument
+            }
+        }
+        if (opmask & PCoff11) { // JSR
+            uint8_t type = 0;
+            int16_t off = 0;
+            ins |= 1 << 10;
+
+            sym_addr = symbol_address(st, tokens[1]);
+            if (sym_addr) {
+                off = sym_addr - (*addr + 1);
+                if (!in_range_11_bit(off)) {
+                    // error: cannot be reprensented in 11 bits
+                }
+                ins |= off & 0b11111111111;
+            } else if ((type = offset_type(tokens[1])) != -1) {
+                off = parse_offset(type, tokens[1]);
+                if (!in_range_11_bit(off)) {
+                    // error: cannot be represented in 9 bits
+                }
+                ins |= off & 0b11111111111;
+            } else {
+                // error: tokens[1] not a valid argument
+            }
+        }
+        if (opmask & Off6) {
+            uint8_t type = offset_type(tokens[3]);
+            int16_t off = 0;
+            if (type != -1) {
+                off = parse_offset(type, tokens[3]);
+                if (!in_range_6_bit(off)) {
+                    // error: cannot be represented in 6 bits
+                }
+                ins |= off & 0b111111;
+            } else {
+                // error: tokens[3] not a valid argument
+            }
+        }
+        if (opmask * Tvec8) {
+            int16_t trapvect8 = is_trap(tokens[0]);
+            if (trapvect8 == 0) {
+                uint8_t type = offset_type(tokens[1]);
+                if (type != OFF_RES) {
+                    trapvect8 = parse_offset(type, tokens[1]);
+                    if (trapvect8 < 0 || trapvect8 > 0xff) {
+                        // error: valid trap vector is unsigned 8 bit value
+                    } else if (trapvect8 < 0x20 || trapvect8 > 0x25) {
+                        // ignored: not defined trap routine
+                    }
+                } else {
+                    // error: invalid trap vector
+                }
+            }
+            ins |= trapvect8 & 0b11111111;
+        }
+        add_to_output_buffer(ob, *addr, ins, linenum);
+        *addr += 1;
+    } else if (pseudo = is_pseudo(tokens[0]) != -1) {
+        switch (pseudo) {
+        case PS_END: {
+            end_found = 1;
+            break;
+        }
+        case PS_BLKW: {
+            uint8_t type = offset_type(tokens[1]);
+            if (type != OFF_RES) {
+                uint16_t blank_cnt = parse_offset(type, tokens[1]);
+                for (uint16_t i = 0; i < blank_cnt; i++) {
+                    add_to_output_buffer(ob, *addr, 0, linenum);
+                    *addr += 1;
+                }
+            } else {
+                // error: invalid argument
+            }
+            break;
+        }
+        case PS_FILL: {
+            uint8_t type = offset_type(tokens[1]);
+            if (type != OFF_RES) {
+                uint16_t off = parse_offset(type, tokens[1]);
+                add_to_output_buffer(ob, *addr, off, linenum);
+                *addr += 1;
+            } else if ((sym_addr = symbol_address(st, tokens[1])) > 0) {
+                add_to_output_buffer(ob, *addr, sym_addr, linenum);
+                *addr += 1;
+            } else {
+                // error: invalid argument
+            }
+            break;
+        }
+        case PS_STRINGZ: {
+            for (uint16_t i = 0; i < tokens[1]->size; i++) {
+                add_to_output_buffer(ob, *addr, tokens[1]->arr[i], linenum);
+                *addr += 1;
+            }
+            break;
+        }
+        default:
+            // ignore undefined pseudoop
+        }
+    } else {
+        // error: invalid token
+    }
+
+    return end_found;
+}
 
 int main(int argc, char **argv)
 {
