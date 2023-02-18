@@ -3,7 +3,35 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <assert.h>
+
+static int32_t errcnt = 0;
+static int32_t warncnt = 0;
+
+void error(uint32_t linenum, char *format,...)
+{
+    va_list args;
+
+    errcnt++;
+    va_start(args, format);
+    printf("Error: %d: ", linenum);
+    vprintf(format, args);
+    printf("\n");
+    va_end(args);
+}
+
+void warning(uint32_t linenum, char *format,...)
+{
+    va_list args;
+
+    warncnt++;
+    va_start(args, format);
+    printf("Warning: %d: ", linenum);
+    vprintf(format, args);
+    printf("\n");
+    va_end(args);
+}
 
 #define MAX_TOKEN_NUM 7
 #define MAX_TOKEN_LEN 1025
@@ -310,164 +338,6 @@ void free_output_buffer(OutputBuffer *ob)
 }
 
 typedef struct {
-    FILE *src;
-    FILE *sym;
-    FILE *obj;
-    FILE *lst;
-} FileList;
-
-int8_t check_extension(char *filename, const char *ext)
-{
-    char *s = strrchr(filename, '.');
-    if (!s) {
-        return 0;
-    }
-    return !strcmp(s, ext);
-}
-
-void replace_extension(char *filename, const char *ext)
-{
-    char *s = strrchr(filename, '.');
-    for (int i = 0; s[i] != '\0'; i++) {
-        s[i] = ext[i];
-    }
-}
-
-uint8_t open_file_list(FileList *fl, char *filename)
-{
-    uint8_t err = 0;
-
-    fl->src = fopen(filename, "r");
-    if (fl->src == NULL) {
-        printf("Couldn't open assembly file: %s!\n", filename);
-        err++;
-    }
-
-    replace_extension(filename, ".sym");
-    fl->sym = fopen(filename, "w");
-    if (fl->sym == NULL) {
-        printf("Couldn't create symbol table file: %s!\n", filename);
-        err++;
-    }
-
-    replace_extension(filename, ".obj");
-    fl->obj = fopen(filename, "wb");
-    if (fl->obj == NULL) {
-        printf("Couldn't create object file: %s!\n", filename);
-        err++;
-    }
-
-    replace_extension(filename, ".lst");
-    fl->lst = fopen(filename, "w");
-    if (fl->lst == NULL) {
-        printf("Couldn't create listing file: %s!\n", filename);
-        err++;
-    }
-
-    replace_extension(filename, ".asm");
-
-    return err;
-}
-
-void close_file_list(FileList *fl)
-{
-    if (!fl) {
-        return;
-    }
-    if (fl->src) {
-        fclose(fl->src);
-    }
-    if (fl->sym) {
-        fclose(fl->sym);
-    }
-    if (fl->obj) {
-        fclose(fl->obj);
-    }
-    if (fl->lst) {
-        fclose(fl->lst);
-    }
-}
-
-uint8_t clean_output(char *filename)
-{
-    uint8_t err = 0;
-    static const char *exts[] = {".sym", ".obj", ".lst"};
-
-    printf("\nCleaning up files produced by the assembler...\n");
-
-    for (uint8_t i = 0; i < 3; i++) {
-        replace_extension(filename, exts[i]);
-        printf("Deleting \"%s\"...\n", filename);
-
-        if (remove(filename)) {
-            printf("Unable to delete \"%s\"!\n", filename);
-            err = 1;
-        }
-    }
-    replace_extension(filename, ".asm");
-
-    return err;
-}
-
-void write_object(OutputBuffer *ob, FILE *obj)
-{
-    uint16_t byte_cnt = ob->size * 2;
-    uint8_t tmp[byte_cnt];
-
-    for (uint16_t i = 0; i < ob->size; i++) {
-        tmp[i * 2] = ob->instrs[i] >> 8;
-        tmp[i * 2 + 1] = ob->instrs[i] & 0xFF;
-    }
-
-    fwrite(tmp, sizeof(uint8_t), byte_cnt, obj);
-}
-
-static const char *binseq[16] = {
-    "0000", "0001", "0010", "0011",
-    "0100", "0101", "0110", "0111",
-    "1000", "1001", "1010", "1011",
-    "1100", "1101", "1110", "1111"
-};
-
-void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
-{
-    #define PRbinseq(x) \
-        binseq[x >> 12], \
-        binseq[(x >> 8) & 0xf], \
-        binseq[(x >> 4) & 0xf], \
-        binseq[x & 0xf]
-
-    char line[MAX_LINE_LEN + 1];
-    uint16_t idx = 1;
-    uint16_t lim = ob->size;
-
-    fseek(src, 0, SEEK_SET);
-
-    fprintf(lst, "  Addr  |  Hex  |       Bin        | Line |  Source\n");
-
-    for (uint32_t ln = 1; fgets(line, MAX_LINE_LEN + 1, src); ln++) {
-        if (idx != lim && ob->lnos[idx] == ln) {
-            uint16_t instr = ob->instrs[idx];
-            uint16_t addr = ob->addrs[idx];
-            fprintf(lst, " x%04X  | x%04X | %s%s%s%s ",
-                    addr, instr, PRbinseq(instr));
-            idx++;
-        } else {
-            fprintf(lst, "        |       |                  ");
-        }
-
-        fprintf(lst, "| %4d | %s", ln, line);
-
-        while (idx != lim && ob->lnos[idx] == ln) {
-            uint16_t instr = ob->instrs[idx];
-            fprintf(lst, "        | x%04X | %s%s%s%s |      |\n",
-                    instr, PRbinseq(instr));
-            idx++;
-        }
-    }
-}
-
-typedef struct {
     Token *sym;
     uint16_t addr;
 } Symbol;
@@ -488,12 +358,13 @@ void add_symbol(SymbolTable *st, Token *label, uint16_t addr)
     }
 
     st->arr[st->size] = malloc(sizeof(Symbol));
-
     Symbol *s = st->arr[st->size];
+
     s->sym = malloc(sizeof(Token));
     s->sym->size = label->size;
     s->sym->str = malloc(label->size + 1);
     memcpy(s->sym->str, label->str, label->size + 1);
+
     s->addr = addr;
 
     st->size++;
@@ -542,6 +413,165 @@ Token *exist_symbol(SymbolTable *st, uint16_t addr)
         }
     }
     return NULL;
+}
+
+typedef struct {
+    FILE *src;
+    FILE *sym;
+    FILE *obj;
+    FILE *lst;
+} FileList;
+
+int8_t check_extension(char *filename, const char *ext)
+{
+    char *s = strrchr(filename, '.');
+    if (!s) {
+        return 0;
+    }
+    return !strcmp(s, ext);
+}
+
+void replace_extension(char *filename, const char *ext)
+{
+    char *s = strrchr(filename, '.');
+    for (int i = 0; s[i] != '\0'; i++) {
+        s[i] = ext[i];
+    }
+}
+
+void open_file_list(FileList *fl, char *filename)
+{
+    uint8_t err = 0;
+
+    fl->src = fopen(filename, "r");
+    if (fl->src == NULL) {
+        error(0, "Couldn't open assembly file: %s", filename);
+    }
+
+    replace_extension(filename, ".sym");
+    fl->sym = fopen(filename, "w");
+    if (fl->sym == NULL) {
+        error(0, "Couldn't create symbol table file: %s", filename);
+    }
+
+    replace_extension(filename, ".obj");
+    fl->obj = fopen(filename, "wb");
+    if (fl->obj == NULL) {
+        error(0, "Couldn't create object file: %s", filename);
+    }
+
+    replace_extension(filename, ".lst");
+    fl->lst = fopen(filename, "w");
+    if (fl->lst == NULL) {
+        error(0, "Couldn't create listing file: %s", filename);
+    }
+
+    replace_extension(filename, ".asm");
+}
+
+void close_file_list(FileList *fl)
+{
+    if (!fl) {
+        return;
+    }
+    if (fl->src) {
+        fclose(fl->src);
+    }
+    if (fl->sym) {
+        fclose(fl->sym);
+    }
+    if (fl->obj) {
+        fclose(fl->obj);
+    }
+    if (fl->lst) {
+        fclose(fl->lst);
+    }
+}
+
+uint8_t clean_output(char *filename)
+{
+    uint8_t err = 0;
+    static const char *exts[] = {".sym", ".obj", ".lst"};
+
+    printf("\nCleaning up output files...\n");
+
+    for (uint8_t i = 0; i < 3; i++) {
+        replace_extension(filename, exts[i]);
+        if (remove(filename)) {
+            warning(0, "Couldn't delete %s", filename);
+            err = 1;
+        }
+    }
+    replace_extension(filename, ".asm");
+
+    return err;
+}
+
+void write_object(OutputBuffer *ob, FILE *obj)
+{
+    uint16_t byte_cnt = ob->size * 2;
+    uint8_t tmp[byte_cnt];
+
+    for (uint16_t i = 0; i < ob->size; i++) {
+        tmp[i * 2] = ob->instrs[i] >> 8;
+        tmp[i * 2 + 1] = ob->instrs[i] & 0xFF;
+    }
+
+    fwrite(tmp, sizeof(uint8_t), byte_cnt, obj);
+}
+
+void write_symbol_table(SymbolTable *st, FILE *sym)
+{
+    fprintf(sym, "  Addr  |  Symbol\n");
+    for (uint32_t idx = 0; idx < st->size; idx++) {
+        fprintf(sym, " x%04X  |  %s\n",
+                st->arr[idx]->addr, st->arr[idx]->sym->str);
+    }
+}
+
+static const char *binseq[16] = {
+    "0000", "0001", "0010", "0011",
+    "0100", "0101", "0110", "0111",
+    "1000", "1001", "1010", "1011",
+    "1100", "1101", "1110", "1111"
+};
+
+void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
+{
+    #define PRbinseq(x) \
+        binseq[x >> 12], \
+        binseq[(x >> 8) & 0xf], \
+        binseq[(x >> 4) & 0xf], \
+        binseq[x & 0xf]
+
+    char line[MAX_LINE_LEN + 1];
+    uint16_t idx = 1;
+    uint16_t lim = ob->size;
+
+    fseek(src, 0, SEEK_SET);
+
+    fprintf(lst, "  Addr  |  Hex  |       Bin        | Line |  Source\n");
+
+    for (uint32_t ln = 1; fgets(line, MAX_LINE_LEN + 1, src); ln++) {
+        if (idx != lim && ob->lnos[idx] == ln) {
+            uint16_t instr = ob->instrs[idx];
+            uint16_t addr = ob->addrs[idx];
+            fprintf(lst, " x%04X  | x%04X | %s%s%s%s ",
+                    addr, instr, PRbinseq(instr));
+            idx++;
+        } else {
+            fprintf(lst, "        |       |                  ");
+        }
+
+        fprintf(lst, "| %4d | %s", ln, line);
+
+        while (idx != lim && ob->lnos[idx] == ln) {
+            uint16_t instr = ob->instrs[idx];
+            fprintf(lst, "        | x%04X | %s%s%s%s |      |\n",
+                    instr, PRbinseq(instr));
+            idx++;
+        }
+    }
 }
 
 enum Opcode {
@@ -1001,9 +1031,8 @@ uint8_t validate_line(
             if (dupe == NULL) {
                 add_symbol(st, tok, *addr);
             } else {
-                // warning
-                printf("Can't add %s to symbol table as %s already points to address %"PRIu16"\n",
-                        tok->str, dupe->str, *addr);
+                warning(ln, "Another symbol is pointing to address %04x: %s",
+                        *addr, dupe->str);
             }
 
             operand_exp = 0;
@@ -1035,23 +1064,23 @@ uint8_t validate_line(
             } else if (pseudo == PS_FILL) {
                 *addr += 1;
             } else {
-                // warning: invalid pseudo-op (how?)
+                warning(ln, "%s ignored", tok->str);
             }
         } else if (is_register(tok) != -1
                 || offset_type(tok) != -1
                 || is_valid_symbol(tok)) {
             operand_cnt++;
         } else {
-            // error: unknown token
+            error(ln, "Unknown token %s", tok->str);
         }
     }
 
     if (operand_exp == -1) {
 
     } else if (operand_cnt > operand_exp) {
-        // warning: more operands than expected
+        warning(ln, "%s has more operands than expected", tl->arr[0]->str);
     } else if (operand_cnt < operand_exp) {
-        // error: less operands than expected
+        error(ln, "%s has not enough operands", tl->arr[0]->str);
     }
 
     add_line(ll, tl, ln);
@@ -1114,10 +1143,10 @@ const uint8_t operand_mask[] = {
     Src1                            // RET -> JMP
 };
 
-#define in_range_5_bit(x) ((-16 <= (x)) && ((x) <= 15))
-#define in_range_6_bit(x) ((-32 <= (x)) && ((x) <= 31))
-#define in_range_9_bit(x) ((-256 <= (x)) && ((x) <= 255))
-#define in_range_11_bit(x) ((-1024 <= (x)) && ((x) <= 1023))
+#define in_range_5_bit(x)   ((-16 <= (x)) && ((x) <= 15))
+#define in_range_6_bit(x)   ((-32 <= (x)) && ((x) <= 31))
+#define in_range_9_bit(x)   ((-256 <= (x)) && ((x) <= 255))
+#define in_range_11_bit(x)  ((-1024 <= (x)) && ((x) <= 1023))
 
 uint8_t generate_machine_code(
     FileList *fl,
@@ -1129,7 +1158,7 @@ uint8_t generate_machine_code(
 {
     uint8_t end_found = 0;
     Line *l = get_line(ll, i);
-    uint32_t linenum = l->lno;
+    uint32_t ln = l->lno;
     Token **tokens = l->toks->arr;
     int8_t opcode = -1, pseudo = -1;
 
@@ -1150,7 +1179,7 @@ uint8_t generate_machine_code(
             if (reg >= 0) {
                 ins |= (reg << 9);
             } else {
-                // error: dst/src not a register
+                error(ln, "%s is not a register", tokens[1]->str);
             }
         }
         if (opmask & Src1) {
@@ -1168,7 +1197,7 @@ uint8_t generate_machine_code(
             if (reg == 7 || (reg = is_register(tokens[rhs])) != -1) {
                 ins |= (reg << 6);
             } else {
-                // error: token[rhs] is not a register
+                error(ln, "%s is not a register", tokens[rhs]->str);
             }
         }
         if (opcode == OP_NOT) {
@@ -1182,12 +1211,13 @@ uint8_t generate_machine_code(
             } else if ((type = offset_type(tokens[3])) != -1) {
                 int16_t imm5 = parse_offset(type, tokens[3]);
                 if (!in_range_5_bit(imm5)) {
-                    // error: immediate value cannot be represented in 5 bits
+                    error(ln, "Immediate %s cannot be represented in 5 bits",
+                            tokens[3]->str);
                 }
                 ins |= (1 << 5);
                 ins |= (imm5 & 0b11111);
             } else {
-                // error: not a valid argument for Src2
+                error(ln, "%s is not a valid operand for Src2", tokens[3]->str);
             }
         }
         if (opmask & Cond) {
@@ -1202,17 +1232,20 @@ uint8_t generate_machine_code(
             if (sym_addr) {
                 off = sym_addr - (*addr + 1);
                 if (!in_range_9_bit(off)) {
-                    // error: cannot be reprensented in 9 bits
+                    error(ln, "PCoffset %04x cannot be represented in 9 bits",
+                            off);
                 }
                 ins |= (off & 0x1ff);
             } else if ((type = offset_type(tokens[rhs])) != -1) {
                 off = parse_offset(type, tokens[rhs]);
                 if (!in_range_9_bit(off)) {
-                    // error: cannot be represented in 9 bits
+                    error(ln, "PCoffset %04x cannot be represented in 9 bits",
+                            off);
                 }
                 ins |= (off & 0x1ff);
             } else {
-                // error: tokens[rhs] not a valid argument
+                error(ln, "%s is not a valid operand for PCoff9",
+                        tokens[rhs]->str);
             }
         }
         if (opmask & PCoff11) { // JSR
@@ -1224,17 +1257,20 @@ uint8_t generate_machine_code(
             if (sym_addr) {
                 off = sym_addr - (*addr + 1);
                 if (!in_range_11_bit(off)) {
-                    // error: cannot be reprensented in 11 bits
+                    error(ln, "PCoffset %04x cannot be represented in 11 bits",
+                            off);
                 }
                 ins |= (off & 0b11111111111);
             } else if ((type = offset_type(tokens[1])) != -1) {
                 off = parse_offset(type, tokens[1]);
                 if (!in_range_11_bit(off)) {
-                    // error: cannot be represented in 9 bits
+                    error(ln, "PCoffset %04x cannot be represented in 11 bits",
+                            off);
                 }
                 ins |= (off & 0b11111111111);
             } else {
-                // error: tokens[1] not a valid argument
+                error(ln, "%s is not a valid operand for PCoff11",
+                        tokens[1]->str);
             }
         }
         if (opmask & Off6) {
@@ -1243,11 +1279,13 @@ uint8_t generate_machine_code(
             if (type != -1) {
                 off = parse_offset(type, tokens[3]);
                 if (!in_range_6_bit(off)) {
-                    // error: cannot be represented in 6 bits
+                    error(ln, "Offset %04x cannot be represented in 6 bits",
+                            off);
                 }
                 ins |= (off & 0b111111);
             } else {
-                // error: tokens[3] not a valid argument
+                error(ln, "%s is not a valid operand for Off6",
+                        tokens[3]->str);
             }
         }
         if (opmask & Tvec8) {
@@ -1257,17 +1295,19 @@ uint8_t generate_machine_code(
                 if (type != OFF_RES) {
                     trapvect8 = parse_offset(type, tokens[1]);
                     if (trapvect8 < 0 || trapvect8 > 0xff) {
-                        // error: valid trap vector is unsigned 8 bit value
+                        error(ln, "%s is not a valid trapvector",
+                                tokens[1]->str);
                     } else if (trapvect8 < 0x20 || trapvect8 > 0x25) {
-                        // ignored: not defined trap routine
+                        warning(ln, "Undefined trap routine %s ignored",
+                                tokens[1]->str);
                     }
                 } else {
-                    // error: invalid trap vector
+                    error(ln, "%s is not a valid trapvector", tokens[1]->str);
                 }
             }
             ins |= (trapvect8 & 0b11111111);
         }
-        add_to_output_buffer(ob, *addr, ins, linenum);
+        add_to_output_buffer(ob, *addr, ins, ln);
         *addr += 1;
     } else if ((pseudo = is_pseudo(tokens[0])) != -1) {
         switch (pseudo) {
@@ -1280,11 +1320,11 @@ uint8_t generate_machine_code(
             if (type != OFF_RES) {
                 uint16_t blank_cnt = parse_offset(type, tokens[1]);
                 for (uint16_t i = 0; i < blank_cnt; i++) {
-                    add_to_output_buffer(ob, *addr, 0, linenum);
+                    add_to_output_buffer(ob, *addr, 0, ln);
                     *addr += 1;
                 }
             } else {
-                // error: invalid argument
+                error(ln, "%s is not valid argument", tokens[1]->str);
             }
             break;
         }
@@ -1292,87 +1332,115 @@ uint8_t generate_machine_code(
             uint8_t type = offset_type(tokens[1]);
             if (type != OFF_RES) {
                 uint16_t off = parse_offset(type, tokens[1]);
-                add_to_output_buffer(ob, *addr, off, linenum);
+                add_to_output_buffer(ob, *addr, off, ln);
                 *addr += 1;
             } else if ((sym_addr = symbol_address(st, tokens[1])) > 0) {
-                add_to_output_buffer(ob, *addr, sym_addr, linenum);
+                add_to_output_buffer(ob, *addr, sym_addr, ln);
                 *addr += 1;
             } else {
-                // error: invalid argument
+                error(ln, "%s is not valid argument", tokens[1]->str);
             }
             break;
         }
         case PS_STRINGZ: {
             for (uint16_t i = 0; i < tokens[1]->size; i++) {
-                add_to_output_buffer(ob, *addr, tokens[1]->str[i], linenum);
+                add_to_output_buffer(ob, *addr, tokens[1]->str[i], ln);
                 *addr += 1;
             }
             break;
         }
         default: {
-            // ignore undefined pseudoop
+            warning(ln, "%s ignored", tokens[0]->str);
         }
         }
     } else {
-        // error: invalid token
+        error(ln, "Unknown token %s", tokens[0]->str);
     }
 
     return end_found;
 }
 
-int main(int argc, char **argv)
+void assemble(
+    OutputBuffer *ob,
+    LineList *ll,
+    SymbolTable *st,
+    FileList *fl,
+    char *filename)
 {
-    OutputBuffer *ob = create_output_buffer();
-    LineList *ll = create_line_list();
-    FileList *fl = malloc(sizeof *fl);
-    SymbolTable *st = create_symbol_table();
-
-    uint8_t err = open_file_list(fl, argv[1]);
-    assert(err == 0);
-
-    uint32_t ln = 1;
-
-    uint16_t addr = 0;
-    uint32_t orig_size = 0;
-    if (find_orig(fl, ob, ll, &ln)) {
-        addr = ob->instrs[0];
-        orig_size = ll->size;
-    } else {
-        // error
+    open_file_list(fl, filename);
+    if (errcnt > 0) {
+        return;
     }
 
-    ln++;
+    uint32_t ln = 1;
+    uint16_t addr = 0;
+    uint32_t orig_idx = 0;
+
+    if (find_orig(fl, ob, ll, &ln)) {
+        addr = ob->instrs[0];
+        orig_idx = ll->size;
+    } else {
+        error(0, ".ORIG not found");
+        return;
+    }
 
     char line[MAX_LINE_LEN + 1];
-    uint32_t i;
     uint8_t end = 0;
 
-    for (i = ln; fgets(line, MAX_LINE_LEN + 1, fl->src) != NULL; i++) {
+    ln++;
+    for (; fgets(line, MAX_LINE_LEN + 1, fl->src) != NULL; ln++) {
         TokenList *tokens = tokenize(line);
         if (tokens->size == 0) {
             free_token_list(tokens);
             continue;
         }
-        end = validate_line(ll, st, tokens, &addr, i);
-
+        end = validate_line(ll, st, tokens, &addr, ln);
         if (end) {
             break;
         }
     }
-
-    uint16_t j;
-    addr = ob->instrs[0];
-    for (j = orig_size; j < ll->size; j++) {
-        generate_machine_code(fl, ob, ll, st, &addr, j);
+    if (errcnt > 0) {
+        return;
     }
 
+    uint16_t idx;
+    addr = ob->instrs[0];
+    for (idx = orig_idx; idx < ll->size; idx++) {
+        generate_machine_code(fl, ob, ll, st, &addr, idx);
+    }
+    if (errcnt > 0) {
+        return;
+    }
+
+    write_symbol_table(st, fl->sym);
     write_listing(ob, fl->lst, fl->src);
     write_object(ob, fl->obj);
+}
+
+int main(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("%s [asm file]\n", argv[0]);
+        exit(1);
+    }
+
+    OutputBuffer *ob = create_output_buffer();
+    LineList *ll = create_line_list();
+    SymbolTable *st = create_symbol_table();
+    FileList *fl = malloc(sizeof *fl);
+
+    assemble(ob, ll, st, fl, argv[1]);
 
     close_file_list(fl);
     free(fl);
     free_line_list(ll);
     free_output_buffer(ob);
     free_symbol_table(st);
-    // clean_output(argv[1]);
+
+    if (errcnt > 0) {
+        clean_output(argv[1]);
+    }
+
+    printf("Yields %d error(s) and %d warning(s)\n", errcnt, warncnt);
+    return 0;
 }
