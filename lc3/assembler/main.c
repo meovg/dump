@@ -182,7 +182,6 @@ void free_token_list(TokenList *tl)
                 free_token(tl->arr[i]);
             }
         }
-        // puts("cleared tokens");
         free(tl->arr);
     }
     free(tl);
@@ -242,17 +241,11 @@ void free_line_list(LineList *ll)
     uint32_t cnt_clear = 0;
     for (uint32_t i = 0; i < ll->size; i++) {
         free_token_list(ll->arr[i]->toks);
-        // puts("can you even clear the tokens?");
         free(ll->arr[i]);
-        // puts("and the pointers?");
-        // cnt_clear++;
-        // printf("token buffers cleared %d\n", cnt_clear);
     }
-    // printf("token buffers cleared %d\n", cnt_clear);
+
     free(ll->arr);
-    // puts("can you clear the array?");
     free(ll);
-    // puts("and the object itself?");
 }
 
 typedef struct {
@@ -358,7 +351,7 @@ uint8_t open_file_list(FileList *fl, char *filename)
     }
 
     replace_extension(filename, ".obj");
-    fl->obj = fopen(filename, "w");
+    fl->obj = fopen(filename, "wb");
     if (fl->obj == NULL) {
         printf("Couldn't create object file: %s!\n", filename);
         err++;
@@ -418,12 +411,12 @@ uint8_t clean_output(char *filename)
 
 void write_object(OutputBuffer *ob, FILE *obj)
 {
-    uint16_t byte_cnt = ob->size;
+    uint16_t byte_cnt = ob->size * 2;
     uint8_t tmp[byte_cnt];
 
     for (uint16_t i = 0; i < ob->size; i++) {
-        tmp[i * 2] = ob->instrs[i] >> 8;        // high byte
-        tmp[i * 2 + 1] = ob->instrs[i] & 0xff;  // low byte
+        tmp[i * 2] = ob->instrs[i] >> 8;
+        tmp[i * 2 + 1] = ob->instrs[i] & 0xFF;
     }
 
     fwrite(tmp, sizeof(uint8_t), byte_cnt, obj);
@@ -445,18 +438,14 @@ void write_listing(OutputBuffer *ob, FILE *lst, FILE *src)
         binseq[x & 0xf]
 
     char line[MAX_LINE_LEN + 1];
-    uint16_t idx = 0; // (doubt)
+    uint16_t idx = 1;
     uint16_t lim = ob->size;
 
     fseek(src, 0, SEEK_SET);
 
     fprintf(lst, "  Addr  |  Hex  |       Bin        | Line |  Source\n");
 
-    for (uint32_t ln = 1; ; ln++) {
-        if (!fgets(line, MAX_LINE_LEN + 1, src)) {
-            break;
-        }
-
+    for (uint32_t ln = 1; fgets(line, MAX_LINE_LEN + 1, src); ln++) {
         if (idx != lim && ob->lnos[idx] == ln) {
             uint16_t instr = ob->instrs[idx];
             uint16_t addr = ob->addrs[idx];
@@ -1008,7 +997,6 @@ uint8_t validate_line(
         tok = tl->arr[i];
 
         if (i == 0 && is_valid_symbol(tok)) {
-            // printf("valid symbol %s\n", tok->str);
             Token *dupe = exist_symbol(st, *addr);
             if (dupe == NULL) {
                 add_symbol(st, tok, *addr);
@@ -1029,7 +1017,7 @@ uint8_t validate_line(
             tmp = tok->str;
 
             if (pseudo == PS_END) {
-                found_end = 1;
+                end_found = 1;
                 break;
             }
             if (i + 1 >= tl->size) {
@@ -1069,36 +1057,6 @@ uint8_t validate_line(
     add_line(ll, tl, ln);
 
     return end_found;
-}
-
-uint8_t pass_one(
-    FileList *fl,
-    OutputBuffer *ob,
-    LineList *ll,
-    SymbolTable *st,
-    uint16_t *addr,
-    uint32_t *ln)
-{
-    char line[MAX_LINE_LEN + 1];
-    uint32_t i;
-    uint8_t end = 0;
-
-    for (i = *ln; fgets(line, MAX_LINE_LEN + 1, fl->src) != NULL; i++) {
-        TokenList *tokens = tokenize(line);
-        if (tokens->size == 0) {
-            free_token_list(tokens);
-            continue;
-        }
-        end = validate_line(ll, st, tokens, addr, i);
-        // for (uint16_t i = 0; i < tokens->size; i++) {
-            // printf("%s ", tokens->arr[i]->str);
-        // }
-        // puts("");
-        if (end) {
-            break;
-        }
-    }
-    return 0;
 }
 
 const int8_t opcode_val[] = {
@@ -1183,14 +1141,14 @@ uint8_t generate_machine_code(
         tokens++;
     }
 
-    if ((opcode = is_opcode(token[0])) != -1) {
+    if ((opcode = is_opcode(tokens[0])) != -1) {
         uint16_t ins = opcode_val[opcode] << 12;
         uint8_t opmask = operand_mask[opcode];
 
         if (opmask & DstSrc) {
             int8_t reg = is_register(tokens[1]);
             if (reg >= 0) {
-                ins |= reg << 9;
+                ins |= (reg << 9);
             } else {
                 // error: dst/src not a register
             }
@@ -1208,13 +1166,13 @@ uint8_t generate_machine_code(
             }
 
             if (reg == 7 || (reg = is_register(tokens[rhs])) != -1) {
-                ins |= reg << 6;
+                ins |= (reg << 6);
             } else {
                 // error: token[rhs] is not a register
             }
         }
         if (opcode == OP_NOT) {
-            ins |= 0b11111;
+            ins |= 0b111111;
         }
         if (opmask & Src2) {
             int8_t reg = 0;
@@ -1226,14 +1184,14 @@ uint8_t generate_machine_code(
                 if (!in_range_5_bit(imm5)) {
                     // error: immediate value cannot be represented in 5 bits
                 }
-                ins |= 1 << 5;
-                ins |= imm5 & 0b11111;
+                ins |= (1 << 5);
+                ins |= (imm5 & 0b11111);
             } else {
                 // error: not a valid argument for Src2
             }
         }
         if (opmask & Cond) {
-            ins |= is_branch(tokens[0]) << 9;
+            ins |= (is_branch(tokens[0]) << 9);
         }
         if (opmask & PCoff9) {
             uint8_t type = 0;
@@ -1246,13 +1204,13 @@ uint8_t generate_machine_code(
                 if (!in_range_9_bit(off)) {
                     // error: cannot be reprensented in 9 bits
                 }
-                ins |= off & 0b111111111;
+                ins |= (off & 0x1ff);
             } else if ((type = offset_type(tokens[rhs])) != -1) {
                 off = parse_offset(type, tokens[rhs]);
                 if (!in_range_9_bit(off)) {
                     // error: cannot be represented in 9 bits
                 }
-                ins |= off & 0b111111111;
+                ins |= (off & 0x1ff);
             } else {
                 // error: tokens[rhs] not a valid argument
             }
@@ -1260,7 +1218,7 @@ uint8_t generate_machine_code(
         if (opmask & PCoff11) { // JSR
             uint8_t type = 0;
             int16_t off = 0;
-            ins |= 1 << 10;
+            ins |= (1 << 11);
 
             sym_addr = symbol_address(st, tokens[1]);
             if (sym_addr) {
@@ -1268,13 +1226,13 @@ uint8_t generate_machine_code(
                 if (!in_range_11_bit(off)) {
                     // error: cannot be reprensented in 11 bits
                 }
-                ins |= off & 0b11111111111;
+                ins |= (off & 0b11111111111);
             } else if ((type = offset_type(tokens[1])) != -1) {
                 off = parse_offset(type, tokens[1]);
                 if (!in_range_11_bit(off)) {
                     // error: cannot be represented in 9 bits
                 }
-                ins |= off & 0b11111111111;
+                ins |= (off & 0b11111111111);
             } else {
                 // error: tokens[1] not a valid argument
             }
@@ -1287,12 +1245,12 @@ uint8_t generate_machine_code(
                 if (!in_range_6_bit(off)) {
                     // error: cannot be represented in 6 bits
                 }
-                ins |= off & 0b111111;
+                ins |= (off & 0b111111);
             } else {
                 // error: tokens[3] not a valid argument
             }
         }
-        if (opmask * Tvec8) {
+        if (opmask & Tvec8) {
             int16_t trapvect8 = is_trap(tokens[0]);
             if (trapvect8 == 0) {
                 uint8_t type = offset_type(tokens[1]);
@@ -1307,11 +1265,11 @@ uint8_t generate_machine_code(
                     // error: invalid trap vector
                 }
             }
-            ins |= trapvect8 & 0b11111111;
+            ins |= (trapvect8 & 0b11111111);
         }
         add_to_output_buffer(ob, *addr, ins, linenum);
         *addr += 1;
-    } else if (pseudo = is_pseudo(tokens[0]) != -1) {
+    } else if ((pseudo = is_pseudo(tokens[0])) != -1) {
         switch (pseudo) {
         case PS_END: {
             end_found = 1;
@@ -1346,13 +1304,14 @@ uint8_t generate_machine_code(
         }
         case PS_STRINGZ: {
             for (uint16_t i = 0; i < tokens[1]->size; i++) {
-                add_to_output_buffer(ob, *addr, tokens[1]->arr[i], linenum);
+                add_to_output_buffer(ob, *addr, tokens[1]->str[i], linenum);
                 *addr += 1;
             }
             break;
         }
-        default:
+        default: {
             // ignore undefined pseudoop
+        }
         }
     } else {
         // error: invalid token
@@ -1363,9 +1322,6 @@ uint8_t generate_machine_code(
 
 int main(int argc, char **argv)
 {
-    // output buffer
-    // line list
-    // files
     OutputBuffer *ob = create_output_buffer();
     LineList *ll = create_line_list();
     FileList *fl = malloc(sizeof *fl);
@@ -1377,30 +1333,41 @@ int main(int argc, char **argv)
     uint32_t ln = 1;
 
     uint16_t addr = 0;
-    uint32_t orig = 0;
+    uint32_t orig_size = 0;
     if (find_orig(fl, ob, ll, &ln)) {
         addr = ob->instrs[0];
-        orig = ll->size;
+        orig_size = ll->size;
+    } else {
+        // error
     }
-    // puts("yatta");
 
-    pass_one(fl, ob, ll, st, &addr, &ln);
-    // puts("before clean up");
+    ln++;
 
-    // for (uint16_t i = 0; i < ll->size; i++) {
-        // assert(ll->arr[i]->toks != NULL);
-        // for (uint8_t j = 0; j < ll->arr[i]->toks->size; j++) {
-            // assert(ll->arr[i]->toks->arr[j] != NULL);
-            // printf("%s ", ll->arr[i]->toks->arr[j]->str);
-        // }
-        // puts("");
-    // }
+    char line[MAX_LINE_LEN + 1];
+    uint32_t i;
+    uint8_t end = 0;
 
-    // for (uint16_t i = 0; i < st->size; i++) {
-        // printf("label: %s, address: %d\n", st->arr[i]->sym->str, st->arr[i]->addr);
-    // }
+    for (i = ln; fgets(line, MAX_LINE_LEN + 1, fl->src) != NULL; i++) {
+        TokenList *tokens = tokenize(line);
+        if (tokens->size == 0) {
+            free_token_list(tokens);
+            continue;
+        }
+        end = validate_line(ll, st, tokens, &addr, i);
 
-    // printf("line list size: %d\n", ll->size);
+        if (end) {
+            break;
+        }
+    }
+
+    uint16_t j;
+    addr = ob->instrs[0];
+    for (j = orig_size; j < ll->size; j++) {
+        generate_machine_code(fl, ob, ll, st, &addr, j);
+    }
+
+    write_listing(ob, fl->lst, fl->src);
+    write_object(ob, fl->obj);
 
     close_file_list(fl);
     free(fl);
@@ -1408,5 +1375,4 @@ int main(int argc, char **argv)
     free_output_buffer(ob);
     free_symbol_table(st);
     // clean_output(argv[1]);
-    // puts("done?");
 }
