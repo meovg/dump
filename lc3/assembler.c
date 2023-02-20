@@ -278,7 +278,7 @@ void add_line(LineList *lines, Line *line)
     lines->size++;
 }
 
-// retrieve a Line object based on the index 'idx'
+// retrieve a Line object based on the index
 Line *get_line(LineList *lines, uint32_t idx)
 {
     if (idx >= lines->size) {
@@ -287,7 +287,7 @@ Line *get_line(LineList *lines, uint32_t idx)
     return lines->arr[idx];
 }
 
-// deallocate Line list and the lists contained
+// deallocate Line list and the lines contained
 void free_line_list(LineList *lines)
 {
     if (!lines) {
@@ -331,6 +331,8 @@ OutputBuffer *create_output_buffer(void)
     return outbuf;
 }
 
+// add assembled instructions, address and line_num to output buffer
+// to be used later on
 void add_to_output_buffer(
     OutputBuffer *outbuf,
     uint16_t address,
@@ -396,12 +398,12 @@ void add_symbol(SymbolTable *symtab, Token *label, uint16_t address)
     symtab->arr[symtab->size] = malloc(sizeof(Symbol));
     Symbol *sym = symtab->arr[symtab->size];
 
-    // allocate and copy the contents from the `label` token to sym->key
+    // allocate and copy the contents from label token to sym->key
     sym->key = malloc(sizeof(Token));
     sym->key->size = label->size;
 
-    sym->key->str = malloc(label->size + 1);
-    memcpy(sym->key->str, label->str, label->size + 1);
+    sym->key->str = malloc(label->size * sizeof(char));
+    memcpy(sym->key->str, label->str, label->size);
 
     sym->address = address;
 
@@ -535,7 +537,7 @@ void close_file_list(FileList *fl)
 }
 
 // delete unused output files
-// only used when errors occurred during assembling process
+// only used when errors occur during assembling process
 void clean_output(char *filename)
 {
     static const char *exts[] = {".sym", ".obj", ".lst"};
@@ -557,9 +559,7 @@ void write_object(OutputBuffer *outbuf, FILE *obj)
 {
     // (the struggle to swap the byte order of machine instructions
     // on both the assembler and simulator just because LC-3 uses big endian)
-    //
-    // i guess object file is written last then
-
+    // i guess object file is written last then...
     for (uint16_t i = 0; i < outbuf->size; i++) {
         uint16_t tmp = outbuf->instructs[i];
         outbuf->instructs[i] = (tmp << 8) | (tmp >> 8);
@@ -755,7 +755,7 @@ int8_t is_trap(Token *token)
         return 0;
     }
 
-    return 32 + ret;
+    return 32 + ret; // defined trapvects are from 0x20 to 0x25
 }
 
 // check if token is an opcode and return its index or -1
@@ -1011,6 +1011,8 @@ uint8_t literal_type(Token *token)
     char *s = token->str;
     char *literal;
 
+    // hexadecimal type: x$$$$ or X$$$$ format (no negative sign)
+    // $ in range [0..9, A..F]
     if ((literal = strchr(s, 'x')) || (literal = strchr(s, 'X'))) {
         literal++;
 
@@ -1021,6 +1023,8 @@ uint8_t literal_type(Token *token)
         }
         return LIT_HEX;
 
+    // binary type: b$$...$ or B$$...$ format (no negative sign)
+    // $ is either 0 or 1
     } else if ((literal = strchr(s, 'b')) || (literal = strchr(s, 'B'))) {
         literal++;
 
@@ -1031,6 +1035,7 @@ uint8_t literal_type(Token *token)
         }
         return LIT_BIN;
 
+    // decimal type: #$$$..$ or $$$..$ format (1 negative sign allowed)
     } else if (s != NULL) {
         literal = strchr(s, '#');
 
@@ -1056,7 +1061,7 @@ uint8_t literal_type(Token *token)
     }
 }
 
-/* //////// ACTUAL ASSEMBLING ROUTINES //////// */
+/* //////// actual assembling routines //////// */
 
 // find pseudo-op .ORIG and get the address to the start of the code
 uint16_t find_orig(
@@ -1085,6 +1090,8 @@ uint16_t find_orig(
 
             add_line(lines, line);
             break;
+        } else {
+            warning(i, "%s instruction ignored", line->tokens[0]);
         }
     }
 
@@ -1174,7 +1181,7 @@ uint8_t validate_line(
                 break;
             }
 
-            Token *next = line->tokens[i+1];
+            Token *next = line->tokens[i + 1];
 
             if (pseudo == PS_STRINGZ) {
                 // offset is the length of string literal
