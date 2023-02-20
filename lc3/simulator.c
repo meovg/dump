@@ -462,7 +462,7 @@ void cmd_trap(uint16_t instr)
         } break;
 
         case TRAP_HALT:
-            puts("HALT");
+            puts("-ACK!");
             fflush(stdout);
 
         default: exit(1);
