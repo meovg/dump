@@ -1615,6 +1615,12 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    // check if filename argument is an assembly file;
+    if (!check_extension(argv[1], ".asm")) {
+        printf("%s is not an assembly file", argv[1]);
+        exit(2);
+    }
+
     OutputBuffer *outbuf = create_output_buffer();
     LineList *lines = create_line_list();
     SymbolTable *symtab = create_symbol_table();
