@@ -90,8 +90,7 @@ void restore_input_buffering(void);
 
 // save the original input mode and
 // disable line-by-line input and showing input in terminal
-void disable_input_buffering(void)
-{
+void disable_input_buffering(void) {
     atexit(restore_input_buffering);
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -117,8 +116,7 @@ void disable_input_buffering(void)
 }
 
 // restore the original input mode, used after the program exits
-void restore_input_buffering(void)
-{
+void restore_input_buffering(void) {
 #if defined(_WIN32) || defined(__CYGWIN__)
     SetConsoleMode(input_handle, fdw_original_mode);
 
@@ -129,8 +127,7 @@ void restore_input_buffering(void)
 }
 
 // check if a key is pressed
-uint16_t check_key(void)
-{
+uint16_t check_key(void) {
 #if defined(_WIN32) || defined(__CYGWIN__)
     return WaitForSingleObject(input_handle, 1000) == WAIT_OBJECT_0 && _kbhit();
 
@@ -148,8 +145,7 @@ uint16_t check_key(void)
 #endif
 }
 
-void handle_interrupt(int signal)
-{
+void handle_interrupt(int signal) {
     restore_input_buffering();
     printf("\n");
     exit(-2);
@@ -157,8 +153,7 @@ void handle_interrupt(int signal)
 
 // extend the sign bit (the leftmost bit) to remaining left bits
 // when x is cast to 16-bit register value
-uint16_t sign_extend(uint16_t x, int bit_count)
-{
+uint16_t sign_extend(uint16_t x, int bit_count) {
     if ((x >> (bit_count - 1)) & 1) {
         x |= (0xffff << bit_count);
     }
@@ -166,14 +161,12 @@ uint16_t sign_extend(uint16_t x, int bit_count)
 }
 
 // swap the bit sequence in higher byte with that of lower byte
-uint16_t swap16(uint16_t x)
-{
+uint16_t swap16(uint16_t x) {
     return (x << 8) | (x >> 8);
 }
 
 // update condition flags register
-void update_flags(uint16_t r)
-{
+void update_flags(uint16_t r) {
     if (registers[r] == 0) {
         registers[R_COND] = FL_ZRO;
     } else if (registers[r] >> 15) {
@@ -185,8 +178,7 @@ void update_flags(uint16_t r)
 }
 
 // read the object file and store the instructions in memory
-void read_object_file(FILE *file)
-{
+void read_object_file(FILE *file) {
     // the origin tells us where in memory to place the image
     uint16_t origin;
     fread(&origin, sizeof(origin), 1, file);
@@ -205,8 +197,7 @@ void read_object_file(FILE *file)
 }
 
 // load an object file into memory
-int import_object_file(const char *filename)
-{
+int import_object_file(const char *filename) {
     FILE *file = fopen(filename, "rb");
     if (!file) {
         return 0;
@@ -218,15 +209,13 @@ int import_object_file(const char *filename)
 }
 
 // write a 16-bit value to memory at given address
-void memory_set(uint16_t address, uint16_t val)
-{
+void memory_set(uint16_t address, uint16_t val) {
     memory[address] = val;
 }
 
 // get the content in memory block at given address
 // if the address is MR_KBSR, also check keyboard input and store it in MR_KBDR
-uint16_t memory_get(uint16_t address)
-{
+uint16_t memory_get(uint16_t address) {
     if (address == MR_KBSR) {
         if (check_key()) {
             memory[MR_KBSR] = (1 << 15);
@@ -239,8 +228,7 @@ uint16_t memory_get(uint16_t address)
 }
 
 // add two values and store the result in register
-void cmd_add(uint16_t instr)
-{
+void cmd_add(uint16_t instr) {
     // destination register
     uint16_t dr = (instr >> 9) & 0x7;
 
@@ -266,8 +254,7 @@ void cmd_add(uint16_t instr)
 }
 
 // perform bitwise and two values and store the result in register
-void cmd_and(uint16_t instr)
-{
+void cmd_and(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
     uint16_t imm_flag = (instr >> 5) & 0x1;
@@ -284,8 +271,7 @@ void cmd_and(uint16_t instr)
 
 // store binary negation of a value and store it in register
 // this is a unary operator, so there's only 1 source register needed
-void cmd_not(uint16_t instr)
-{
+void cmd_not(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr = (instr >> 6) & 0x7;
 
@@ -294,8 +280,7 @@ void cmd_not(uint16_t instr)
 }
 
 // make machine jump to another instruction by an offset if condition is met
-void cmd_br(uint16_t instr)
-{
+void cmd_br(uint16_t instr) {
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     uint16_t cond_flag = (instr >> 9) & 0x7;
 
@@ -308,16 +293,14 @@ void cmd_br(uint16_t instr)
 }
 
 // make machine move to an instruction specified by the register w/o conditions
-void cmd_jmp(uint16_t instr)
-{
+void cmd_jmp(uint16_t instr) {
     // also handle RET when sr1 (base register position) is 7
     uint16_t sr1 = (instr >> 6) & 0x7;
     registers[R_PC] = registers[sr1];
 }
 
 // perform jump register to start subroutine
-void cmd_jsr(uint16_t instr)
-{
+void cmd_jsr(uint16_t instr) {
     // bit 11 indicates addressing mode
     uint16_t long_flag = (instr >> 11) & 1;
 
@@ -337,8 +320,7 @@ void cmd_jsr(uint16_t instr)
 
 // load a value into a register
 // the value is in memory with address being the sum of PC counter and offset
-void cmd_ld(uint16_t instr)
-{
+void cmd_ld(uint16_t instr) {
     // destination register (DR)
     uint16_t dr = (instr >> 9) & 0x7;
 
@@ -351,8 +333,7 @@ void cmd_ld(uint16_t instr)
 
 // similar to LD but instead of loading the value in memory
 // the machine loads the content in memory with value being the address
-void cmd_ldi(uint16_t instr)
-{
+void cmd_ldi(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
 
@@ -362,8 +343,7 @@ void cmd_ldi(uint16_t instr)
 }
 
 // similar to LD but the base instruction address is not from the PC counter
-void cmd_ldr(uint16_t instr)
-{
+void cmd_ldr(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
     uint16_t offset = sign_extend(instr & 0x3f, 6);
@@ -373,8 +353,7 @@ void cmd_ldr(uint16_t instr)
 
 // load effective address
 // similar to LD but it loads the address instead
-void cmd_lea(uint16_t instr)
-{
+void cmd_lea(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     registers[dr] = registers[R_PC] + pc_offset;
@@ -383,8 +362,7 @@ void cmd_lea(uint16_t instr)
 
 // store the content of register sr into memory
 // with address being the sum of PC counter and PCoffset9
-void cmd_st(uint16_t instr)
-{
+void cmd_st(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     memory_set(registers[R_PC] + pc_offset, registers[dr]);
@@ -392,16 +370,14 @@ void cmd_st(uint16_t instr)
 
 // similar to ST but the destination address is the content in
 // memory with sum of PC counter and PCoffset9 as address
-void cmd_sti(uint16_t instr)
-{
+void cmd_sti(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t pc_offset = sign_extend(instr & 0x1ff, 9);
     memory_set(memory_get(registers[R_PC] + pc_offset), registers[dr]);
 }
 
 // similar to ST but the address is the sum of value in register sr1
-void cmd_str(uint16_t instr)
-{
+void cmd_str(uint16_t instr) {
     uint16_t dr = (instr >> 9) & 0x7;
     uint16_t sr1 = (instr >> 6) & 0x7;
     uint16_t offset = sign_extend(instr & 0x3f, 6);
@@ -409,8 +385,7 @@ void cmd_str(uint16_t instr)
 }
 
 // interact with I/O devices (in this case, a terminal)
-void cmd_trap(uint16_t instr)
-{
+void cmd_trap(uint16_t instr) {
     registers[R_R7] = registers[R_PC];
 
     switch (instr & 0xff) {
@@ -469,8 +444,7 @@ void cmd_trap(uint16_t instr)
     }
 }
 
-int main(int argc, const char *argv[])
-{
+int main(int argc, const char **argv) {
     if (argc < 2) {
         // show usage string
         printf("%s [obj-file1] ...\n", argv[0]);

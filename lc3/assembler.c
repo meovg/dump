@@ -17,8 +17,7 @@ static int32_t errcnt = 0;
 static int32_t warncnt = 0;
 
 // notify an error on the terminal
-void error(uint32_t linenum, char *format,...)
-{
+void error(uint32_t linenum, char *format, ...) {
     va_list args;
 
     errcnt++;
@@ -30,8 +29,7 @@ void error(uint32_t linenum, char *format,...)
 }
 
 // notify a warning on the terminal
-void warning(uint32_t linenum, char *format,...)
-{
+void warning(uint32_t linenum, char *format, ...) {
     va_list args;
 
     warncnt++;
@@ -53,8 +51,7 @@ typedef struct {
     uint16_t size;
 } Token;
 
-char escape_value(char c)
-{
+char escape_value(char c) {
     static const char esc_chrs[] = {
         '\'', '\"', '\?', '\\', 'a', 'b', 'f', 'n', 'r', 't', 'v'
     };
@@ -62,7 +59,9 @@ char escape_value(char c)
         0x27, 0x22, 0x3F, 0x5C, 0x07, 0x08, 0x0C, 0x0A, 0x0D, 0x09, 0x0B
     };
 
-    for (int8_t i = 0; i < 11; i++) {
+    int8_t i;
+
+    for (i = 0; i < 11; i++) {
         if (c == esc_chrs[i]) {
             return esc_vals[i];
         }
@@ -70,14 +69,15 @@ char escape_value(char c)
     return c;
 }
 
-int8_t is_eow(char c)
-{
-    int8_t eow = 0;
+int8_t is_eow(char c) {
     static const char eow_chrs[] = {
         '\0', '\r', '\t', '\n', ' ', ',', ';'
     };
 
-    for (uint8_t i = 0; i < 7; i++) {
+    int8_t eow = 0;
+    uint8_t i;
+
+    for (i = 0; i < 7; i++) {
         if (c == eow_chrs[i]) {
             eow++;
         }
@@ -85,14 +85,15 @@ int8_t is_eow(char c)
     return eow;
 }
 
-int8_t is_eol(char c)
-{
-    int8_t eol = 0;
+int8_t is_eol(char c) {
     static const char eol_chrs[] = {
         '\0', '\n', '\r', ';' // semicolon marks the start of a comment
     };
 
-    for (uint8_t i = 0; i < 4; i++) {
+    int8_t eol = 0;
+    uint8_t i;
+
+    for (i = 0; i < 4; i++) {
         if (c == eol_chrs[i]) {
             eol++;
         }
@@ -102,10 +103,11 @@ int8_t is_eol(char c)
 
 // get a token of substring until the end of a line or a quote
 // used for lexing string literals 
-Token *token_from_string(const char *str, uint16_t *index_ptr)
-{
-    uint16_t i = *index_ptr;
+Token *token_from_string(const char *str, uint16_t *p_idx) {
+    uint16_t i = *p_idx;
     uint16_t j = 0;
+    uint16_t k;
+    Token *tok;
     static char tmp[MAX_TOKEN_LEN + 1];
 
     // load characters to be included in the token in a temporary array
@@ -123,27 +125,27 @@ Token *token_from_string(const char *str, uint16_t *index_ptr)
 
     // index stays at the end of a line
     // or position of the closing quote so the quote is skipped later
-    *index_ptr = i;
+    *p_idx = i;
 
-    Token *token = malloc(sizeof *token);
+    tok = malloc(sizeof *tok);
+    tok->size = j + 1;
+    tok->str = malloc(tok->size * sizeof(char));
 
-    token->size = j + 1;
-    token->str = malloc(token->size * sizeof(char));
-
-    for (uint16_t k = 0; k < j; k++) {
-        token->str[k] = tmp[k];
+    for (k = 0; k < j; k++) {
+        tok->str[k] = tmp[k];
     }
-    token->str[j] = '\0';
+    tok->str[j] = '\0';
 
-    return token;
+    return tok;
 }
 
 // get a token of substring until a word separator is found
 // used for lexing symbols, opcodes, psuedo-ops and operands...
-Token *token_from_word(const char *str, uint16_t *index_ptr)
-{
-    uint8_t i = *index_ptr;
+Token *token_from_word(const char *str, uint16_t *p_idx) {
+    uint8_t i = *p_idx;
     uint8_t j = 0;
+    uint8_t k;
+    Token *tok;
     static char tmp[MAX_TOKEN_LEN + 1];
 
     while (!is_eow(str[i])) {
@@ -154,97 +156,89 @@ Token *token_from_word(const char *str, uint16_t *index_ptr)
 
     // index should be at the last character in a token
     // so that tokenize() can check if the next character is a separator
-    *index_ptr = i - 1;
+    *p_idx = i - 1;
 
-    Token *token = malloc(sizeof *token);
+    tok = malloc(sizeof *tok);
+    tok->size = j + 1;
+    tok->str = malloc(tok->size * sizeof(char));
 
-    token->size = j + 1;
-    token->str = malloc(token->size * sizeof(char));
-
-    for (uint8_t k = 0; k < j; k++) {
-        token->str[k] = tmp[k];
+    for (k = 0; k < j; k++) {
+        tok->str[k] = tmp[k];
     }
-    token->str[j] = '\0';
+    tok->str[j] = '\0';
 
-    return token;
+    return tok;
+}
+
+// deallocate the token
+void token_del(Token *tok) {
+    if (tok) {
+        if (tok->str) {
+            free(tok->str);
+        }
+        free(tok);
+    }
 }
 
 typedef struct {
-    Token **tokens;         // array of tokens in an instruction line
-    uint8_t token_count;    // token count of the line
-    uint32_t line_num;      // the line number (index) in the assembly file
+    Token **tokens;     // array of tokens in an instruction line
+    uint8_t tokcnt;     // token count of the line
+    uint32_t lidx;      // the line number (index) in the assembly file
 } Line;
 
 // break down an instruction line into several chunks of strings (tokens)
-Line *tokenize(uint32_t linenum, const char *str)
-{
-    Line *line = malloc(sizeof *line);
+Line *line_new(uint32_t lidx, const char *str) {
+    int8_t need_token = 0;          // if more token is needed
+    int8_t is_sep = 0;              // if current char is separator
+    int8_t prev_is_sep = 1;         // if the previous character is a separator
+    Line *ln = malloc(sizeof *ln);  // returning object consisting of lexed tokens 
+    uint16_t i;
 
-    line->line_num = linenum;
-    line->token_count = 0;
-    line->tokens = malloc(sizeof(Token *));
+    ln->lidx = lidx;
+    ln->tokcnt = 0;
+    ln->tokens = malloc(sizeof(Token *));
 
-    int8_t need_token = 0;  // check if it's necessary to reserve space in
-                            // token array, set to 1 if token array is full
-    int8_t is_sep = 0;
-    int8_t is_quote = 0;
-    int8_t prev_is_sep = 1; // check if the previous character is a separator to
-                            // extract token from a word, thus set to 1 at first
-
-    for (uint16_t i = 0; !is_eol(str[i]); i++) {
+    for (i = 0; !is_eol(str[i]); i++) {
         is_sep = (str[i] == ' ' || str[i] == '\t' || str[i] == ',');
 
         if (str[i] == '\"') {
             i++;
-            line->tokens[line->token_count] = token_from_string(str, &i);
-            line->token_count++;
+            ln->tokens[ln->tokcnt] = token_from_string(str, &i);
+            ln->tokcnt++;
             need_token = 1;
         } else if (prev_is_sep && !is_sep) {
-            line->tokens[line->token_count] = token_from_word(str, &i);
-            line->token_count++;
+            ln->tokens[ln->tokcnt] = token_from_word(str, &i);
+            ln->tokcnt++;
             is_sep = 1;
             need_token = 1;
         }
 
-        // not necessary to realloc 2 times the current capacity
-        // as the limit is small (7 tokens per line)
+        // the limit is only 7 so no need to realloc twice the current capacity
         if (need_token) {
-            line->tokens = realloc(line->tokens,
-                    (line->token_count + 1) * sizeof(Token *));
+            ln->tokens = realloc(ln->tokens, (ln->tokcnt + 1) * sizeof(Token *));
             need_token = 0;
         }
 
         prev_is_sep = is_sep;
     }
-    return line;
-}
-
-// deallocate the token
-void free_token(Token *token)
-{
-    if (token) {
-        if (token->str) {
-            free(token->str);
-        }
-        free(token);
-    }
+    return ln;
 }
 
 // deallocate a Line object and the tokens contained inside
-void free_line(Line *line)
-{
-    if (!line) {
+void line_del(Line *ln) {
+    uint8_t i;
+
+    if (!ln) {
         return;
     }
-    if (line->tokens) {
-        for (uint8_t i = 0; i < line->token_count; i++) {
-            if (line->tokens[i]->size) {
-                free_token(line->tokens[i]);
-            }
+
+    for (i = 0; i < ln->tokcnt; i++) {
+        if (ln->tokens[i]->size) {
+            token_del(ln->tokens[i]);
         }
-        free(line->tokens);
     }
-    free(line);
+    free(ln->tokens);
+    free(ln);
 }
 
 // dynamic container of Line objects
@@ -252,54 +246,49 @@ typedef struct {
     Line **arr;
     uint32_t size;
     uint32_t cap;
-} LineList;
+} InputBuf;
 
-#define LINELIST_DEFAULT_SIZE 200
+#define INPUTBUF_DEFAULT_SIZE 200
 
-LineList *create_line_list(void)
-{
-    LineList *lines = malloc(sizeof *lines);
+InputBuf *inputbuf_new(void) {
+    InputBuf *ibuf = malloc(sizeof *ibuf);
 
-    lines->cap = LINELIST_DEFAULT_SIZE;
-    lines->size = 0;
-    lines->arr = malloc(lines->cap * sizeof(Line *));
-
-    return lines;
+    ibuf->cap = INPUTBUF_DEFAULT_SIZE;
+    ibuf->size = 0;
+    ibuf->arr = malloc(ibuf->cap * sizeof(Line *));
+    return ibuf;
 }
 
-void add_line(LineList *lines, Line *line)
-{
-    if (lines->size == lines->cap) {
-        lines->cap *= 2;
-        lines->arr = realloc(lines->arr, lines->cap * sizeof(Line *));
+void inputbuf_add(InputBuf *ibuf, Line *ln) {
+    if (ibuf->size == ibuf->cap) {
+        ibuf->cap *= 2;
+        ibuf->arr = realloc(ibuf->arr, ibuf->cap * sizeof(Line *));
     }
 
-    lines->arr[lines->size] = line;
-    lines->size++;
+    ibuf->arr[ibuf->size] = ln;
+    ibuf->size++;
 }
 
 // retrieve a Line object based on the index
-Line *get_line(LineList *lines, uint32_t idx)
-{
-    if (idx >= lines->size) {
+Line *inputbuf_get(InputBuf *ibuf, uint32_t idx) {
+    if (idx >= ibuf->size) {
         return NULL;
     }
-    return lines->arr[idx];
+    return ibuf->arr[idx];
 }
 
 // deallocate Line list and the lines contained
-void free_line_list(LineList *lines)
-{
-    if (!lines) {
+void inputbuf_del(InputBuf *ibuf) {
+    uint32_t i;
+
+    if (!ibuf) {
         return;
     }
-
-    for (uint32_t i = 0; i < lines->size; i++) {
-        free_line(lines->arr[i]);
+    for (i = 0; i < ibuf->size; i++) {
+        line_del(ibuf->arr[i]);
     }
-
-    free(lines->arr);
-    free(lines);
+    free(ibuf->arr);
+    free(ibuf);
 }
 
 /* //////// output buffer //////// */
@@ -307,141 +296,124 @@ void free_line_list(LineList *lines)
 // storing assembled machine codes and related infos to write into
 // program's object file and listing file
 typedef struct {
-    uint16_t *instructs;    // array of machine codes
-    uint16_t *addresses;    // array of addresses of machine codes
-    uint32_t *line_nums;    // array of indexes of instructions in the assembly
-                            // file that map to respective machine codes
+    uint16_t *instr;    // machine codes
+    uint16_t *addr;     // addresses of machine codes
+    uint32_t *lidx;     // indexes of instructions in the assembly
+                        // file that map to respective machine codes
     uint16_t size;
     uint16_t cap;
-} OutputBuffer;
+} OutputBuf;
 
-#define OUTPUT_BUFFER_DEFAULT_SIZE 128
+#define OUTPUTBUF_DEFAULT_SIZE 128
 
-OutputBuffer *create_output_buffer(void)
-{
-    OutputBuffer *outbuf = malloc(sizeof *outbuf);
+OutputBuf *outputbuf_new(void) {
+    OutputBuf *obuf = malloc(sizeof *obuf);
 
-    outbuf->size = 0;
-    outbuf->cap = OUTPUT_BUFFER_DEFAULT_SIZE;
-
-    outbuf->addresses = malloc(outbuf->cap * sizeof(uint16_t));
-    outbuf->instructs = malloc(outbuf->cap * sizeof(uint16_t));
-    outbuf->line_nums = malloc(outbuf->cap * sizeof(uint32_t));
-
-    return outbuf;
+    obuf->size = 0;
+    obuf->cap = OUTPUTBUF_DEFAULT_SIZE;
+    obuf->addr = malloc(obuf->cap * sizeof(uint16_t));
+    obuf->instr = malloc(obuf->cap * sizeof(uint16_t));
+    obuf->lidx = malloc(obuf->cap * sizeof(uint32_t));
+    return obuf;
 }
 
-// add assembled instructions, address and line_num to output buffer
+// add assembled instructions, address and linenum to output buffer
 // to be used later on
-void add_to_output_buffer(
-    OutputBuffer *outbuf,
-    uint16_t address,
-    uint16_t instruction,
-    uint32_t line_num)
-{
-    if (outbuf->size == outbuf->cap) {
-        outbuf->cap *= 2;
-        outbuf->addresses = realloc(outbuf->addresses,
-                outbuf->cap * sizeof(uint16_t));
-        outbuf->instructs = realloc(outbuf->instructs,
-                outbuf->cap * sizeof(uint16_t));
-        outbuf->line_nums = realloc(outbuf->line_nums,
-                outbuf->cap * sizeof(uint32_t));
+void outputbuf_add(OutputBuf *obuf, uint16_t addr, uint16_t instr, uint32_t lidx) {
+    if (obuf->size == obuf->cap) {
+        obuf->cap *= 2;
+        obuf->addr = realloc(obuf->addr, obuf->cap * sizeof(uint16_t));
+        obuf->instr = realloc(obuf->instr, obuf->cap * sizeof(uint16_t));
+        obuf->lidx = realloc(obuf->lidx, obuf->cap * sizeof(uint32_t));
     }
 
-    outbuf->addresses[outbuf->size] = address;
-    outbuf->instructs[outbuf->size] = instruction;
-    outbuf->line_nums[outbuf->size] = line_num;
-
-    outbuf->size++;
+    obuf->addr[obuf->size] = addr;
+    obuf->instr[obuf->size] = instr;
+    obuf->lidx[obuf->size] = lidx;
+    obuf->size++;
 }
 
-void free_output_buffer(OutputBuffer *outbuf)
-{
-    if (!outbuf) {
+void outputbuf_del(OutputBuf *obuf) {
+    if (!obuf) {
         return;
     }
-    if (outbuf->addresses) {
-        free(outbuf->addresses);
+    if (obuf->addr) {
+        free(obuf->addr);
     }
-    if (outbuf->instructs) {
-        free(outbuf->instructs);
+    if (obuf->instr) {
+        free(obuf->instr);
     }
-    if (outbuf->line_nums) {
-        free(outbuf->line_nums);
+    if (obuf->lidx) {
+        free(obuf->lidx);
     }
-    free(outbuf);
+    free(obuf);
 }
 
 /* //////// symbol table and helpers //////// */
 
 typedef struct {
     Token *key;         // symbol (label)
-    uint16_t address;   // symbol's instruction address
+    uint16_t addr;      // symbol's instruction address
 } Symbol;
 
 typedef struct {
     Symbol **arr;
     uint32_t size;
     uint32_t cap;
-} SymbolTable;
+} SymTab;
 
-#define SYMBOL_TABLE_DEFAULT_SIZE 8
+#define SYMTAB_DEFAULT_SIZE 8
 
-void add_symbol(SymbolTable *symtab, Token *label, uint16_t address)
-{
-    if (symtab->size == symtab->cap) {
-        symtab->cap *= 2;
-        symtab->arr = realloc(symtab->arr, symtab->cap * sizeof(Symbol *));
+SymTab *symtab_new(void) {
+    SymTab *st = malloc(sizeof(*st));
+
+    st->size = 0;
+    st->cap = SYMTAB_DEFAULT_SIZE;
+    st->arr = malloc(st->cap * sizeof(Symbol *));
+    return st;
+}
+
+void symtab_add(SymTab *st, Token *key, uint16_t addr) {
+    Symbol *sym;
+
+    if (st->size == st->cap) {
+        st->cap *= 2;
+        st->arr = realloc(st->arr, st->cap * sizeof(Symbol *));
     }
-
-    symtab->arr[symtab->size] = malloc(sizeof(Symbol));
-    Symbol *sym = symtab->arr[symtab->size];
+    st->arr[st->size] = malloc(sizeof(Symbol));
 
     // allocate and copy the contents from label token to sym->key
+    sym = st->arr[st->size];
     sym->key = malloc(sizeof(Token));
-    sym->key->size = label->size;
+    sym->key->size = key->size;
+    sym->key->str = malloc(key->size * sizeof(char));
+    memcpy(sym->key->str, key->str, key->size);
+    sym->addr = addr;
 
-    sym->key->str = malloc(label->size * sizeof(char));
-    memcpy(sym->key->str, label->str, label->size);
-
-    sym->address = address;
-
-    symtab->size++;
+    st->size++;
 }
 
-SymbolTable *create_symbol_table(void)
-{
-    SymbolTable *symtab = malloc(sizeof(*symtab));
+void symtab_del(SymTab *st) {
+    uint16_t i;
 
-    symtab->size = 0;
-    symtab->cap = SYMBOL_TABLE_DEFAULT_SIZE;
-    symtab->arr = malloc(symtab->cap * sizeof(Symbol *));
-
-    return symtab;
-}
-
-void free_symbol_table(SymbolTable *symtab)
-{
-    if (!symtab) {
+    if (!st) {
         return;
     }
-
-    for (uint16_t i = 0; i < symtab->size; i++) {
-        free_token(symtab->arr[i]->key);
-        free(symtab->arr[i]);
+    for (i = 0; i < st->size; i++) {
+        token_del(st->arr[i]->key);
+        free(st->arr[i]);
     }
-
-    free(symtab->arr);
-    free(symtab);
+    free(st->arr);
+    free(st);
 }
 
 // get the instruction address of a symbol from the symbol table
-uint16_t symbol_address(SymbolTable *symtab, Token *key)
-{
-    for (uint16_t i = 0; i < symtab->size; i++) {
-        if (!strcmp(symtab->arr[i]->key->str, key->str)) {
-            return symtab->arr[i]->address;
+uint16_t symtab_get(SymTab *st, Token *key) {
+    uint16_t i;
+
+    for (i = 0; i < st->size; i++) {
+        if (!strcmp(st->arr[i]->key->str, key->str)) {
+            return st->arr[i]->addr;
         }
     }
     return 0;
@@ -449,17 +421,33 @@ uint16_t symbol_address(SymbolTable *symtab, Token *key)
 
 // check if an instruction address has a symbol referring to it
 // or return NULL
-Token *exist_symbol(SymbolTable *symtab, uint16_t address)
-{
-    for (uint16_t i = 0; i < symtab->size; i++) {
-        if (symtab->arr[i]->address == address) {
-            return symtab->arr[i]->key;
+Token *symtab_exists(SymTab *st, uint16_t addr) {
+    uint16_t i;
+
+    for (i = 0; i < st->size; i++) {
+        if (st->arr[i]->addr == addr) {
+            return st->arr[i]->key;
         }
     }
     return NULL;
 }
 
 /* //////// Files output //////// */
+
+int8_t extension_check(char *filename, const char *ext) {
+    char *s = strrchr(filename, '.');
+    if (!s) {
+        return 0;
+    }
+    return !strcmp(s, ext);
+}
+
+void extension_replace(char *filename, const char *ext) {
+    char *s = strrchr(filename, '.');
+    for (int i = 0; s[i] != '\0'; i++) {
+        s[i] = ext[i];
+    }
+}
 
 // group of files to work with
 typedef struct {
@@ -469,26 +457,8 @@ typedef struct {
     FILE *lst;  // listing file (write plain text)
 } FileList;
 
-int8_t check_extension(char *filename, const char *ext)
-{
-    char *s = strrchr(filename, '.');
-    if (!s) {
-        return 0;
-    }
-    return !strcmp(s, ext);
-}
-
-void replace_extension(char *filename, const char *ext)
-{
-    char *s = strrchr(filename, '.');
-    for (int i = 0; s[i] != '\0'; i++) {
-        s[i] = ext[i];
-    }
-}
-
-// open files to work with
-void open_file_list(FileList *fl, char *filename)
-{
+// this function is simply initialization so allocate FileList object yourself, thanks :)
+void filelist_open(FileList *fl, char *filename) {
     uint8_t err = 0;
 
     fl->src = fopen(filename, "r");
@@ -496,29 +466,28 @@ void open_file_list(FileList *fl, char *filename)
         error(0, "Couldn't open assembly file: %s", filename);
     }
 
-    replace_extension(filename, ".sym");
+    extension_replace(filename, ".sym");
     fl->sym = fopen(filename, "w");
     if (fl->sym == NULL) {
         error(0, "Couldn't create symbol table file: %s", filename);
     }
 
-    replace_extension(filename, ".obj");
+    extension_replace(filename, ".obj");
     fl->obj = fopen(filename, "wb");  // binary file
     if (fl->obj == NULL) {
         error(0, "Couldn't create object file: %s", filename);
     }
 
-    replace_extension(filename, ".lst");
+    extension_replace(filename, ".lst");
     fl->lst = fopen(filename, "w");
     if (fl->lst == NULL) {
         error(0, "Couldn't create listing file: %s", filename);
     }
 
-    replace_extension(filename, ".asm");
+    extension_replace(filename, ".asm");
 }
 
-void close_file_list(FileList *fl)
-{
+void filelist_close(FileList *fl) {
     if (!fl) {
         return;
     }
@@ -536,47 +505,44 @@ void close_file_list(FileList *fl)
     }
 }
 
-// delete unused output files
-// only used when errors occur during assembling process
-void clean_output(char *filename)
-{
+// delete unused output files, used when errors occur during assembling process
+void clean_output(char *filename) {
     static const char *exts[] = {".sym", ".obj", ".lst"};
+    uint8_t i;
 
     printf("\nCleaning up output files...\n");
-
-    for (uint8_t i = 0; i < 3; i++) {
-        replace_extension(filename, exts[i]);
+    for (i = 0; i < 3; i++) {
+        extension_replace(filename, exts[i]);
         if (remove(filename)) {
             warning(0, "Couldn't delete %s", filename);
         }
     }
-
-    replace_extension(filename, ".asm");
+    extension_replace(filename, ".asm");
 }
 
 // write assembled machine instructions to .obj file
-void write_object(OutputBuffer *outbuf, FILE *obj)
-{
+void write_obj(OutputBuf *obuf, FILE *obj) {
+    uint16_t i;
+    uint16_t tmp;   // store instruction for each loop
+
     // (the struggle to swap the byte order of machine instructions
     // on both the assembler and simulator just because LC-3 uses big endian)
     // i guess object file is written last then...
-    for (uint16_t i = 0; i < outbuf->size; i++) {
-        uint16_t tmp = outbuf->instructs[i];
-        outbuf->instructs[i] = (tmp << 8) | (tmp >> 8);
+    for (i = 0; i < obuf->size; i++) {
+        tmp = obuf->instr[i];
+        obuf->instr[i] = (tmp << 8) | (tmp >> 8);
     }
-
-    fwrite(outbuf->instructs, sizeof(uint16_t), outbuf->size, obj);
+    fwrite(obuf->instr, sizeof(uint16_t), obuf->size, obj);
 }
 
 // write the symbol table to .sym file
-// symbols are listed in the second column while their addresses are in the first
-void write_symbol_table(SymbolTable *symtab, FILE *sym)
-{
-    fprintf(sym, "  Addr  |  Symbol\n");
+// symbols are listed in the second column while their addr are in the first
+void write_sym(SymTab *st, FILE *sym) {
+    uint32_t i;
 
-    for (uint32_t idx = 0; idx < symtab->size; idx++) {
-        fprintf(sym, " x%04X  |  %s\n",
-                symtab->arr[idx]->address, symtab->arr[idx]->key->str);
+    fprintf(sym, "  Addr  |  Symbol\n");
+    for (i = 0; i < st->size; i++) {
+        fprintf(sym, " x%04X  |  %s\n", st->arr[i]->addr, st->arr[i]->key->str);
     }
 }
 
@@ -588,59 +554,54 @@ static const char *binseq[16] = {
 };
 
 // write listing table to .lst file
-// each column of table specifies assembled machine code addresses in hex (1)
+// each column of table specifies assembled machine code addr in hex (1)
 // instructions in hex (2) and binary (3), the index (4) and content (5)
 // of respective source codes in assembly file
 //
 // note that a line in source code can map to 0, 1 or many machine instructions
-void write_listing(OutputBuffer *outbuf, FILE *lst, FILE *src)
-{
-    // sequence used to print instructions in binary
-    #define PRbinseq(x) \
-        binseq[x >> 12], \
-        binseq[(x >> 8) & 0xf], \
-        binseq[(x >> 4) & 0xf], \
-        binseq[x & 0xf]
 
-    static char line[MAX_LINE_LEN + 1];
+// sequence used to print instructions in binary
+#define PRbinseq(x) \
+    binseq[x >> 12], \
+    binseq[(x >> 8) & 0xf], \
+    binseq[(x >> 4) & 0xf], \
+    binseq[x & 0xf]
 
-    uint16_t idx = 1;
-    uint16_t lim = outbuf->size;
+void write_lst(OutputBuf *obuf, FILE *lst, FILE *src) {
+    static char line[MAX_LINE_LEN + 1]; // store the line read from assembly file
+    uint16_t i = 1;     // outbuf index, skip 0 since it only contains .orig address
+    uint32_t lidx;      // assembly file line index
+    uint16_t instr;     // store instruction for each loop
+    uint16_t addr;      // store address for each loop
 
     fseek(src, 0, SEEK_SET);
-
     fprintf(lst, "  Addr  |  Hex  |       Bin        | Line |  Source\n");
 
-    for (uint32_t ln = 1; fgets(line, MAX_LINE_LEN + 1, src); ln++) {
-        // write first 3 columns if any matched instruction is found
-        // or leave them blank
-        if (idx != lim && outbuf->line_nums[idx] == ln) {
-            uint16_t instruction = outbuf->instructs[idx];
-            uint16_t address = outbuf->addresses[idx];
-
-            fprintf(lst, " x%04X  | x%04X | %s%s%s%s ",
-                    address, instruction, PRbinseq(instruction));
-
-            idx++;
+    for (lidx = 1; fgets(line, MAX_LINE_LEN + 1, src); lidx++) {
+        // write first 3 columns if any matched instruction is found or leave them blank
+        if (i != obuf->size && obuf->lidx[i] == lidx) {
+            instr = obuf->instr[i];
+            addr = obuf->addr[i];
+            fprintf(lst, " x%04X  | x%04X | %s%s%s%s ", addr, instr, PRbinseq(instr));
+            i++;
         } else {
             fprintf(lst, "        |       |                  ");
         }
 
         // write respective line in source code
-        // fgets reads newline to `line` as well so there's no need to add \n
-        fprintf(lst, "| %4d | %s", ln, line);
+        // fgets reads newline as well so there's no need to add \n
+        fprintf(lst, "| %4d | %s", lidx, line);
 
-        // write other machine codes in case one assembly code maps to
-        // multiple machine codes (.STRINGZ and .BLKW)
-        while (idx != lim && outbuf->line_nums[idx] == ln) {
-            uint16_t instruction = outbuf->instructs[idx];
-
-            fprintf(lst, "        | x%04X | %s%s%s%s |      |\n",
-                    instruction, PRbinseq(instruction));
-            idx++;
+        // write other machine codes in case an assembly instruction maps to multiple machine codes (.STRINGZ and .BLKW)
+        while (i != obuf->size && obuf->lidx[i] == lidx) {
+            instr = obuf->instr[i];
+            fprintf(lst, "        | x%04X | %s%s%s%s |      |\n", instr, PRbinseq(instr));
+            i++;
         }
     }
 }
+
+#undef PRbinseq
 
 /* //////// Token validation and evaluation //////// */
 
@@ -675,8 +636,7 @@ enum PseudoOpcode {
 };
 
 // check if token is a register or return -1
-int8_t is_register(Token *token)
-{
+int8_t is_register(Token *tok) {
     static const char *registers[] = {
         "R0", "r0",
         "R1", "r1",
@@ -689,20 +649,19 @@ int8_t is_register(Token *token)
     };
 
     int8_t ret = -1;
+    int8_t i;
 
-    for (int8_t i = 0; i < 16; i++) {
-        if (!strcmp(token->str, registers[i])) {
+    for (i = 0; i < 16; i++) {
+        if (!strcmp(tok->str, registers[i])) {
             ret = i / 2;
             break;
         }
     }
-
     return ret;
 }
 
 // check if token is correct branch options or return the default BRnzp
-int8_t is_branch(Token *token)
-{
+int8_t is_branch(Token *tok) {
     static const char *br_options[] = {
         "BR", "BR", "br",
         "BRP", "BRp", "brp",
@@ -715,21 +674,20 @@ int8_t is_branch(Token *token)
     };
 
     int8_t ret = -1;
+    int8_t i;
 
-    for (int8_t i = 0; i < 24; i++) {
-        if (!strcmp(token->str, br_options[i])) {
+    for (i = 0; i < 24; i++) {
+        if (!strcmp(tok->str, br_options[i])) {
             ret = i / 3;
             break;
         }
     }
-
     ret = (ret == 0) ? 7 : ret;
     return ret;
 }
 
 // check if token is trapcode or return -1
-int8_t is_trap(Token *token)
-{
+int8_t is_trap(Token *tok) {
     static const char *traps[] = {
         "GETC", "getc",
         "OUT", "out",
@@ -741,26 +699,24 @@ int8_t is_trap(Token *token)
     };
 
     int8_t ret = -1;
+    int8_t i;
 
-    for (int8_t i = 0; i < 14; i++) {
-        if (!strcmp(token->str, traps[i])) {
+    for (i = 0; i < 14; i++) {
+        if (!strcmp(tok->str, traps[i])) {
             ret = i / 2;
             break;
         }
     }
-
     if (ret == -1) {
         return -1;
     } else if (ret == 6) {
         return 0;
     }
-
     return 32 + ret; // defined trapvects are from 0x20 to 0x25
 }
 
 // check if token is an opcode and return its index or -1
-int8_t is_opcode(Token *token)
-{
+int8_t is_opcode(Token *tok) {
     static const char *opcodes[] = {
         "BR", "br",
         "ADD", "add",
@@ -781,33 +737,31 @@ int8_t is_opcode(Token *token)
     };
 
     int8_t ret = -1;
+    int8_t i;
 
-    for (int8_t i = 0; i < 32; i++) {
-        if (!strcmp(token->str, opcodes[i])) {
+    for (i = 0; i < 32; i++) {
+        if (!strcmp(tok->str, opcodes[i])) {
             ret = i / 2;
             break;
         }
     }
-
     if (ret < 0) { // check if token is trapcode or opcode not defined above
-        if (is_branch(token) >= 0) {
+        if (is_branch(tok) >= 0) {
             ret = OP_BR;
-        } else if (is_trap(token) >= 0) {
+        } else if (is_trap(tok) >= 0) {
             ret = OP_TRAPS;
-        } else if (!strcmp(token->str, "JSRR") || !strcmp(token->str, "jsrr")) {
+        } else if (!strcmp(tok->str, "JSRR") || !strcmp(tok->str, "jsrr")) {
             ret = OP_JSRR;
-        } else if (!strcmp(token->str, "RET") || !strcmp(token->str, "ret")) {
+        } else if (!strcmp(tok->str, "RET") || !strcmp(tok->str, "ret")) {
             ret = OP_RET;
         }
     } else if (ret == OP_RES) {
         ret = -1;
     }
-
     return ret;
 }
 
-int8_t is_pseudo(Token *token)
-{
+int8_t is_pseudo(Token *tok) {
     static const char *pseudos[] = {
         ".ORIG", ".orig",
         ".END", ".end",
@@ -817,9 +771,10 @@ int8_t is_pseudo(Token *token)
     };
 
     int8_t ret = -1;
+    int8_t i;
 
-    for (int8_t i = 0; i < 10; i++) {
-        if (!strcmp(token->str, pseudos[i])) {
+    for (i = 0; i < 10; i++) {
+        if (!strcmp(tok->str, pseudos[i])) {
             ret = i / 2;
             break;
         }
@@ -831,22 +786,20 @@ int8_t is_pseudo(Token *token)
 // (first character is an alphabetical character or underscore, the rest are
 // either alphabetical, underscore or a numeric digit;
 // symbol must not be equal to reserved keywords: register, opcode, pseudo-ops...)
-uint8_t is_valid_symbol(Token *token)
-{
-    char *s = token->str;
+uint8_t is_valid_symbol(Token *tok) {
+    char *s = tok->str;
+    uint16_t i;
 
     if (!isalpha(s[0]) && s[0] != '_') {
         return 0;
     }
-
-    for (uint16_t i = 0; s[i] != '\0'; i++) {
+    for (i = 0; s[i] != '\0'; i++) {
         if (!isalnum(s[i]) && s[i] != '_') {
             return 0;
         }
     }
-
     // no need to check if it's a pseudo-op as the first character cannot be period
-    return is_register(token) == -1 && is_opcode(token) == -1;
+    return is_register(tok) == -1 && is_opcode(tok) == -1;
 }
 
 // literal (immediate) value that is hardcoded in the source file
@@ -862,241 +815,221 @@ enum LiteralType {
 // calculate the two's complement binary sequence
 // refer to https://en.wikipedia.org/wiki/Two%27s_complement#Converting_from_two's_complement_representation
 // for the formula
-int16_t parse_two_complement(const char *s)
-{
-    static const int N = 16;
-    static char seq[17];
+int16_t parse_two_complement(const char *s) {
+    static const int N = 16;    // bit count limit
+    static char seq[17];        // store valid binary sequence in char
+    int16_t res = 0;            // return value
+    size_t len = strlen(s);     // length of given binary sequence
+    size_t i = len - 1;         // iterates through s
+    size_t j = 0;               // iterates through seq
 
-    memset(seq, 0, 17 * sizeof(char));
-
-    int16_t res = 0;
-    size_t len = strlen(s);
-    size_t i = len - 1, j = 0;
-
+    // copy bit sequence from the bottom up for easier looking calculation
     while (j < len && j < N) {
         seq[j] = s[i] - '0';
         j++;
         i--;
     }
 
-    for (i = 0; i <= N-2; i++) {
-        res += seq[i] * (1 << i);
+    for (j = 0; j <= N-2; j++) {
+        res += seq[j] * (1 << j);
     }
-
     res -= seq[N-1] * (1 << (N-1));
-
     return res;
 }
 
 // get decimal value of hex digit
-int8_t hex_index(char c)
-{
+int8_t hex_index(char c) {
     static const char hex[] = {
         '0', '1', '2', '3', '4', '5', '6', '7',
         '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
     };
 
-    for (int8_t i = 0; i < 16; i++) {
+    int8_t i;
+
+    for (i = 0; i < 16; i++) {
         if (i < 10 && c == hex[i]) {
             return i;
         } else if (i >= 10 && (c == hex[i] || c == hex[i] + 32)) {
             return i;
         }
     }
-
     return -1;
 }
 
 // calculate the two's complement literal represented in hex code
-int16_t parse_hex(const char *s)
-{
+int16_t parse_hex(const char *s) {
     static const int N = 4;
-    static char seq[5]; // storing the 4 bits to convert since i know some of you
-                        // will go all your way to drop a 1000-digit number here
-    static char bin[17]; // binary sequence to be used in parse_two_complement()
+    static char seq[5];     // stores the 4 bits to convert, just in case :)
+    static char bin[17];    // binary sequence to be used in parse_two_complement()
+    char *num = NULL;       // points to the numerical part of `s`
+    size_t len;             // length of `num`
+    size_t i;               // iterates through `num`
+    size_t j;               // iterates through `seq`
+    char *tmp;              // used in copying binary sequence
 
     memset(seq, 0, 5 * sizeof(char));
     memset(bin, 0, 17 * sizeof(char));
 
     // move to the start of actual number in literal
-    char *num = strchr(s, 'x');
+    num = strchr(s, 'x');
     if (num == NULL) {
-        num = strchr(s, 'X'); // reminder to stop abusing the left shift key
-                              // right shift key's life matters
+        // a reminder for heathens that write in uppercase to pet your right shift key too
+        num = strchr(s, 'X');
     }
-
     // skip that x too
     num++;
 
-    // copy the thing to seq, i think
-    size_t len = strlen(num);
-    size_t i = len - 1, j = 0;
-
+    len = strlen(num);
+    i = len - 1;
+    j = 0;
     while (j < len && j < N) {
-        seq[j] = (char)hex_index(num[i]);
+        seq[j] = hex_index(num[i]);
         j++;
         i--;
     }
 
     // transcode into binary sequence
-    i = 0;
-    char *tmp = bin + 16;
-
-    while (i < N) {
+    j = 0;
+    tmp = bin + 16;
+    while (j < N) {
         tmp -= 4 * sizeof(char);
-        memcpy(tmp, binseq[seq[i]], 4 * sizeof(char));
-        i++;
+        memcpy(tmp, binseq[seq[j]], 4 * sizeof(char));
+        j++;
     }
-
     return parse_two_complement(bin);
 }
 
-int16_t parse_bin(char *s)
-{
+int16_t parse_bin(char *s) {
     char *num = strchr(s, 'b');
     if (num == NULL) {
-        num = strchr(s, 'B'); // right key also deserves care and support
+        num = strchr(s, 'B');
     }
-
     num++;
-
     return parse_two_complement(num);
 }
 
-int16_t parse_dec(char *s)
-{
-    int8_t neg = 0;
-    char *num = strchr(s, '#');
+int16_t parse_dec(char *s) {
+    int8_t neg = 0;             // if the literal is negative
+    int16_t res = 0;            // returned value
+    char *num = strchr(s, '#'); // numerical part of literal
+    size_t i = 0;               // iterates through `num`
 
     if (num == NULL) {
         num = s;
     } else {
         num++;
     }
-
     if (num[0] == '-') {
         neg = 1;
         num++;
     }
-
-    int16_t res = 0;
-    size_t i = 0;
-
     while (num[i] != '\0') {
         res = res * 10 + (num[i] - '0');
         i++;
     }
-
     return neg ? -res : res;
 }
 
-int16_t parse_literal(uint8_t literal_type, Token *token)
-{
-    char *s = token->str;
+int16_t parse_literal(uint8_t type, Token *tok) {
+    char *s = tok->str;
     int16_t val = 0;
 
-    if (literal_type == LIT_HEX) {
+    if (type == LIT_HEX) {
         val = parse_hex(s);
-    } else if (literal_type == LIT_BIN) {
+    } else if (type == LIT_BIN) {
         val = parse_bin(s);
-    } else if (literal_type == LIT_DEC) {
+    } else if (type == LIT_DEC) {
         val = parse_dec(s);
     }
     return val;
 }
 
 // return the literal type of the presumably "literal" token
-uint8_t literal_type(Token *token)
-{
-    char *s = token->str;
-    char *literal;
+uint8_t literal_type(Token *tok) {
+    char *s = tok->str;
+    char *lit;
 
     // hexadecimal type: x$$$$ or X$$$$ format (no negative sign)
     // $ in range [0..9, A..F]
-    if ((literal = strchr(s, 'x')) || (literal = strchr(s, 'X'))) {
-        literal++;
-
-        for (; *literal; literal++) {
-            if (hex_index(*literal) == -1) {
+    if ((lit = strchr(s, 'x')) || (lit = strchr(s, 'X'))) {
+        lit++;
+        while (*lit != '\0') {
+            if (hex_index(*lit) == -1) {
                 return LIT_RES;
             }
+            lit++;
         }
         return LIT_HEX;
 
     // binary type: b$$...$ or B$$...$ format (no negative sign)
     // $ is either 0 or 1
-    } else if ((literal = strchr(s, 'b')) || (literal = strchr(s, 'B'))) {
-        literal++;
-
-        for (; *literal; literal++) {
-            if (*literal != '0' && *literal != '1') {
+    } else if ((lit = strchr(s, 'b')) || (lit = strchr(s, 'B'))) {
+        lit++;
+        while (*lit != '\0') {
+            if (*lit != '0' && *lit != '1') {
                 return LIT_RES;
             }
+            lit++;
         }
         return LIT_BIN;
 
     // decimal type: #$$$..$ or $$$..$ format (1 negative sign allowed)
     } else if (s != NULL) {
-        literal = strchr(s, '#');
+        lit = strchr(s, '#');
 
-        if (literal == NULL) {
-            literal = s;
+        if (lit == NULL) {
+            lit = s;
         } else {
-            literal++;
+            lit++;
         }
-
-        if (*literal == '-') {
-            literal++;
+        if (*lit == '-') {
+            lit++;
         }
-
-        for (; *literal; literal++) {
-            if (!isdigit(*literal)) {
+        while (*lit != '\0') {
+            if (!isdigit(*lit)) {
                 return LIT_RES;
             }
+            lit++;
         }
         return LIT_DEC;
-
-    } else {
-        return LIT_RES;
     }
+    return LIT_RES;
 }
 
 /* //////// actual assembling routines //////// */
 
 // find pseudo-op .ORIG and get the address to the start of the code
 uint16_t find_orig(
-    FileList *files,
-    OutputBuffer *outbuf,
-    LineList *lines,
-    uint32_t *linenum)
-{
+    FileList *fl,       // group of working files
+    InputBuf *ibuf,     // input buffer containing lexed assembly instructions
+    OutputBuf *obuf,    // output buffer containing machine codes
+    uint32_t *p_lidx    // points to the current line index in the routine that calls this function 
+) {
     static char str[MAX_LINE_LEN + 1]; // char array to read lines from files
-    uint16_t orig = 0;
-    uint32_t i;
+    uint16_t orig = 0;  // returned value, the starting address of the program  
+    uint32_t i;         // acts as line index for *p_lidx
+    Line *ln;           // points lexed line object
 
-    for (i = *linenum; fgets(str, MAX_LINE_LEN + 1, files->src) != NULL; i++) {
-        Line *line = tokenize(i, str);
-        if (line->token_count == 0) {
-            free_line(line);
+    for (i = *p_lidx; fgets(str, MAX_LINE_LEN + 1, fl->src) != NULL; i++) {
+        int8_t pseudo_idx;  // stores the pseudo enum value 
+
+        ln = line_new(i, str);
+        if (ln->tokcnt == 0) {
+            line_del(ln);
             continue;
         }
 
-        int8_t pseudo_idx = is_pseudo(line->tokens[0]);
-
-        // found .ORIG
-        if (pseudo_idx == PS_ORIG) {
-            orig = parse_literal(LIT_HEX, line->tokens[1]);
-            add_to_output_buffer(outbuf, 0, orig, i);
-
-            add_line(lines, line);
+        pseudo_idx = is_pseudo(ln->tokens[0]);
+        if (pseudo_idx == PS_ORIG) {    // .orig found 
+            orig = parse_literal(LIT_HEX, ln->tokens[1]);
+            inputbuf_add(ibuf, ln);
+            outputbuf_add(obuf, 0, orig, i);
             break;
         } else {
-            warning(i, "%s instruction ignored", line->tokens[0]);
+            warning(i, "%s instruction ignored", ln->tokens[0]);
         }
     }
-
-    *linenum = i;
-
+    *p_lidx = i;
     return orig;
 }
 
@@ -1133,92 +1066,89 @@ const uint8_t pseudo_operand_cnt[] = {
 // identify symbols and put them into symbol table
 // also check for valid opcodes, pseudo-ops, and operand counts
 uint8_t validate_line(
-    LineList *lines,
-    SymbolTable *symtab,
-    Line *line,
-    uint16_t *addr)
-{
+    InputBuf *ibuf,     // input buffer with list of lexed lines
+    SymTab *st,         // symbol table
+    Line *ln,           // line object
+    uint16_t *p_addr    // current instruction address
+) {
     uint8_t end_found = 0;      // return value, set to 1 if .END is found
-    uint32_t ln = line->line_num;
+    uint32_t lidx = ln->lidx; // current line number
     char *tmp;
     int8_t opcode = -1;         // opcode index defined in some enum idk
-    int8_t pseudo = -1;         // same but for pseudo-ops
+    int8_t pseudo = -1;         // same thing but for pseudo-ops
     int8_t operand_exp = -1;    // expected operand counts
     int8_t operand_cnt = 0;     // actual operand counts
-    Token *token;
+    Token *tok;
+    uint8_t i;
 
-    for (uint8_t i = 0; i < line->token_count; i++) {
-        token = line->tokens[i];
+    for (i = 0; i < ln->tokcnt; i++) {
+        tok = ln->tokens[i];
 
-        if (i == 0 && is_valid_symbol(token)) {
+        if (i == 0 && is_valid_symbol(tok)) {
             // check if any symbol also points to the current address
-            Token *dupe = exist_symbol(symtab, *addr);
+            Token *dupe = symtab_exists(st, *p_addr);
+
             if (dupe == NULL) {
-                add_symbol(symtab, token, *addr);
+                symtab_add(st, tok, *p_addr);
             } else {
-                warning(ln, "Another symbol is pointing to address %04x: %s",
-                        *addr, dupe->str);
+                warning(lidx, "Another symbol is pointing to address %04x: %s", *p_addr, dupe->str);
             }
-
             operand_exp = 0;
-            tmp = token->str;
-        } else if ((opcode = is_opcode(token)) != -1) {
+            tmp = tok->str;
+        } else if ((opcode = is_opcode(tok)) != -1) {
             operand_exp = opcode_operand_cnt[opcode];
-            tmp = token->str;
-            *addr += 1;
-        } else if ((pseudo = is_pseudo(token)) != -1) {
-            operand_exp = pseudo_operand_cnt[pseudo];
-            tmp = token->str;
+            tmp = tok->str;
+            *p_addr += 1;
+        } else if ((pseudo = is_pseudo(tok)) != -1) {
+            Token *next;
 
+            operand_exp = pseudo_operand_cnt[pseudo];
+            tmp = tok->str;
             if (pseudo == PS_END) { // .END is found, leave now
                 end_found = 1;
                 break;
             }
-
             // this is already an "operand not found" error but
             // let's propagate that to operand check at the end of the function
-            if (i + 1 >= line->token_count) {
+            if (i + 1 >= ln->tokcnt) {
                 break;
             }
 
-            Token *next = line->tokens[i + 1];
-
+            next = ln->tokens[i + 1];
             if (pseudo == PS_STRINGZ) {
                 // offset is the length of string literal
-                *addr += next->size;
+                *p_addr += next->size;
                 i++;
                 operand_cnt++;
             } else if (pseudo == PS_BLKW) {
-                // offset the literal
+                // offset is the literal
                 uint8_t type = literal_type(next);
                 if (type != LIT_RES) {
-                    *addr += parse_literal(type, next);
+                    *p_addr += parse_literal(type, next);
                 }
             } else if (pseudo == PS_FILL) {
-                *addr += 1;
+                *p_addr += 1;
             } else {
-                warning(ln, "%s ignored", token->str);
+                warning(lidx, "%s ignored", tok->str);
             }
-        } else if (is_register(token) != -1         // valid operand check
-                || literal_type(token) != LIT_RES
-                || is_valid_symbol(token)) {
+        } else if (is_register(tok) != -1 || literal_type(tok) != LIT_RES || is_valid_symbol(tok)) {
             operand_cnt++;
         } else {
-            error(ln, "Unknown token %s", token->str);
+            error(lidx, "Unknown token %s", tok->str);
         }
     }
 
     if (operand_exp == -1) {
-
+        // nothing, just to make it readable
     } else if (operand_cnt > operand_exp) {
-        warning(ln, "%s has more operands than expected", line->tokens[0]->str);
+        warning(lidx, "%s has more operands than expected", ln->tokens[0]->str);
     } else if (operand_cnt < operand_exp) {
-        error(ln, "%s has not enough operands", line->tokens[0]->str);
+        error(lidx, "%s has not enough operands", ln->tokens[0]->str);
     }
 
     // add current line to the line list so the program can move on from
     // reading this forsaken source code file
-    add_line(lines, line);
+    inputbuf_add(ibuf, ln);
 
     return end_found;
 }
@@ -1287,27 +1217,28 @@ const uint8_t operand_mask[] = {
 
 // generate machine code based on assembly instruction
 uint8_t generate_machine_code(
-    OutputBuffer *outbuf,
-    SymbolTable *symtab,
-    Line *line,
-    uint16_t *address)
-{
-    uint8_t end_found = 0;
-    uint32_t ln = line->line_num;
-    Token **tokens = line->tokens;
-    int8_t opcode = -1;
-    int8_t pseudo = -1;
+    OutputBuf *obuf,    // output buffer
+    SymTab *st,         // symbol table
+    Line *ln,           // lexed instruction line
+    uint16_t *p_addr    // instruction address
+) {
+    uint8_t end_found = 0;          // return value, checks if .end is found to stop
+    uint32_t lidx = ln->lidx;       // this instruction line index in assembly file 
+    Token **toks = ln->tokens;      // list of tokens in line
+    int8_t opcode = -1;             // opcode enum value
+    int8_t pseudo = -1;             // pseudo enum value
+    uint16_t sym_addr;              // symbol address
 
-    uint16_t sym_addr = symbol_address(symtab, tokens[0]);
-
+    // check symbol table for possible symbol found
+    sym_addr = symtab_get(st, toks[0]);
     if (sym_addr) {
-        if (line->token_count == 1) {
+        if (ln->tokcnt == 1) {
             return 0;
         }
-        tokens++;
+        toks++;
     }
 
-    if ((opcode = is_opcode(tokens[0])) != -1) {
+    if ((opcode = is_opcode(toks[0])) != -1) {
         uint16_t ins = opcode_val[opcode] << 12;
         uint8_t opmask = operand_mask[opcode];
 
@@ -1318,11 +1249,11 @@ uint8_t generate_machine_code(
         }
 
         if (opmask & DstSrc) {
-            int8_t reg = is_register(tokens[1]);
+            int8_t reg = is_register(toks[1]);
             if (reg >= 0) {
                 ins |= (reg << 9);
             } else {
-                error(ln, "%s is not a register", tokens[1]->str);
+                error(lidx, "%s is not a register", toks[1]->str);
             }
         }
 
@@ -1338,10 +1269,10 @@ uint8_t generate_machine_code(
                 rhs = 2;
             }
 
-            if (reg == 7 || (reg = is_register(tokens[rhs])) != -1) {
+            if (reg == 7 || (reg = is_register(toks[rhs])) != -1) {
                 ins |= (reg << 6);
             } else {
-                error(ln, "%s is not a register", tokens[rhs]->str);
+                error(lidx, "%s is not a register", toks[rhs]->str);
             }
         }
 
@@ -1350,27 +1281,27 @@ uint8_t generate_machine_code(
             int8_t reg = 0;
             uint8_t type = 0;
 
-            if ((reg = is_register(tokens[3])) != -1) {
+            if ((reg = is_register(toks[3])) != -1) {
                 ins |= reg;
-            } else if ((type = literal_type(tokens[3])) != LIT_RES) {
-                int16_t imm5 = parse_literal(type, tokens[3]);
+            } else if ((type = literal_type(toks[3])) != LIT_RES) {
+                int16_t imm5 = parse_literal(type, toks[3]);
+
                 if (!in_range_5_bit(imm5)) {
-                    error(ln, "Immediate %s cannot be represented in 5 bits",
-                            tokens[3]->str);
+                    error(lidx, "Immediate %s cannot be represented in 5 bits", toks[3]->str);
                 }
-                ins |= (imm5 & 0b11111);
 
                 // the 1 in the 5th indicates immediate mode
                 // telling machine to inteprete the lowest 5 bits as literal
+                ins |= (imm5 & 0b11111);
                 ins |= (1 << 5);
             } else {
-                error(ln, "%s is not a valid operand for Src2", tokens[3]->str);
+                error(lidx, "%s is not a valid operand for Src2", toks[3]->str);
             }
         }
 
         // no need to check since the default branch option is BRnzp
         if (opmask & Cond) {
-            ins |= (is_branch(tokens[0]) << 9);
+            ins |= (is_branch(toks[0]) << 9);
         }
 
         if (opmask & PCoff9) {
@@ -1378,27 +1309,21 @@ uint8_t generate_machine_code(
             uint8_t rhs = opcode == OP_BR ? 1 : 2;
             int16_t off = 0;
 
-            sym_addr = symbol_address(symtab, tokens[rhs]);
+            sym_addr = symtab_get(st, toks[rhs]);
             if (sym_addr) {
-                off = sym_addr - (*address + 1);
-
+                off = sym_addr - (*p_addr + 1);
                 if (!in_range_9_bit(off)) {
-                    error(ln, "PCoffset %04x cannot be represented in 9 bits",
-                            off);
+                    error(lidx, "PCoffset %04x cannot be represented in 9 bits", off);
                 }
-
                 ins |= (off & 0b111111111);
-            } else if ((type = literal_type(tokens[rhs])) != LIT_RES) {
-                off = parse_literal(type, tokens[rhs]);
-
+            } else if ((type = literal_type(toks[rhs])) != LIT_RES) {
+                off = parse_literal(type, toks[rhs]);
                 if (!in_range_9_bit(off)) {
-                    error(ln, "PCoffset %04x cannot be represented in 9 bits",
-                            off);
+                    error(lidx, "PCoffset %04x cannot be represented in 9 bits", off);
                 }
                 ins |= (off & 0b111111111);
             } else {
-                error(ln, "%s is not a valid operand for PCoff9",
-                        tokens[rhs]->str);
+                error(lidx, "%s is not a valid operand for PCoff9", toks[rhs]->str);
             }
         }
 
@@ -1407,208 +1332,198 @@ uint8_t generate_machine_code(
             int16_t off = 0;
 
             ins |= (1 << 11);
-
-            sym_addr = symbol_address(symtab, tokens[1]);
+            sym_addr = symtab_get(st, toks[1]);
 
             if (sym_addr) {
-                off = sym_addr - (*address + 1);
+                off = sym_addr - (*p_addr + 1);
 
                 if (!in_range_11_bit(off)) {
-                    error(ln, "PCoffset %04x cannot be represented in 11 bits",
-                            off);
+                    error(lidx, "PCoffset %04x cannot be represented in 11 bits", off);
                 }
-
                 ins |= (off & 0b11111111111);
-            } else if ((type = literal_type(tokens[1])) != LIT_RES) {
-                off = parse_literal(type, tokens[1]);
+            } else if ((type = literal_type(toks[1])) != LIT_RES) {
+                off = parse_literal(type, toks[1]);
 
                 if (!in_range_11_bit(off)) {
-                    error(ln, "PCoffset %04x cannot be represented in 11 bits",
-                            off);
+                    error(lidx, "PCoffset %04x cannot be represented in 11 bits", off);
                 }
                 ins |= (off & 0b11111111111);
             } else {
-                error(ln, "%s is not a valid operand for PCoff11",
-                        tokens[1]->str);
+                error(lidx, "%s is not a valid operand for PCoff11", toks[1]->str);
             }
         }
 
         if (opmask & Off6) {
-            uint8_t type = literal_type(tokens[3]);
+            uint8_t type = literal_type(toks[3]);
             int16_t off = 0;
 
             if (type != LIT_RES) {
-                off = parse_literal(type, tokens[3]);
-
+                off = parse_literal(type, toks[3]);
                 if (!in_range_6_bit(off)) {
-                    error(ln, "Offset %04x cannot be represented in 6 bits",
-                            off);
+                    error(lidx, "Offset %04x cannot be represented in 6 bits", off);
                 }
                 ins |= (off & 0b111111);
             } else {
-                error(ln, "%s is not a valid operand for Off6",
-                        tokens[3]->str);
+                error(lidx, "%s is not a valid operand for Off6", toks[3]->str);
             }
         }
 
         // trapcode, validation is at validate_line() (inside is_opcode)
         if (opmask & Tvec8) {
-            int16_t trapvect8 = is_trap(tokens[0]);
+            int16_t trapvect8 = is_trap(toks[0]);
 
             // case instruction is in `TRAP <trapvect8>` format
             if (trapvect8 == 0) {
-                uint8_t type = literal_type(tokens[1]);
+                uint8_t type = literal_type(toks[1]);
 
                 if (type != LIT_RES) {
-                    trapvect8 = parse_literal(type, tokens[1]);
-
+                    trapvect8 = parse_literal(type, toks[1]);
                     if (trapvect8 < 0 || trapvect8 > 0xff) {
-                        error(ln, "%s is not a valid trapvector",
-                                tokens[1]->str);
+                        error(lidx, "%s is not a valid trapvector", toks[1]->str);
                     } else if (trapvect8 < 0x20 || trapvect8 > 0x25) {
-                        warning(ln, "Undefined trap routine %s ignored",
-                                tokens[1]->str);
+                        warning(lidx, "Undefined trap routine %s ignored", toks[1]->str);
                     }
                 } else {
-                    error(ln, "%s is not a valid trapvector", tokens[1]->str);
+                    error(lidx, "%s is not a valid trapvector", toks[1]->str);
                 }
             }
             ins |= (trapvect8 & 0b11111111);
         }
 
-        add_to_output_buffer(outbuf, *address, ins, ln);
-        *address += 1;
+        outputbuf_add(obuf, *p_addr, ins, lidx);
+        *p_addr += 1;
 
-    } else if ((pseudo = is_pseudo(tokens[0])) != -1) {
+    } else if ((pseudo = is_pseudo(toks[0])) != -1) {
         switch (pseudo) {
-        case PS_END: { // stop assembling
-            end_found = 1;
-            break;
-        }
+            case PS_END: { // stop assembling
+                end_found = 1;
+                break;
+            }
 
-        case PS_BLKW: { // reserve `tokens[1]` memory locations
-            uint8_t type = literal_type(tokens[1]);
+            case PS_BLKW: { // reserve `toks[1]` memory locations
+                uint8_t type = literal_type(toks[1]);
 
-            if (type != LIT_RES) {
-                uint16_t blank_cnt = parse_literal(type, tokens[1]);
+                if (type != LIT_RES) {
+                    uint16_t blank_cnt = parse_literal(type, toks[1]);
+                    uint16_t i;
 
-                for (uint16_t i = 0; i < blank_cnt; i++) {
-                    add_to_output_buffer(outbuf, *address, 0, ln);
-                    *address += 1;
+                    for (i = 0; i < blank_cnt; i++) {
+                        outputbuf_add(obuf, *p_addr, 0, lidx);
+                        *p_addr += 1;
+                    }
+                } else {
+                    error(lidx, "%s is not valid argument", toks[1]->str);
                 }
-            } else {
-                error(ln, "%s is not valid argument", tokens[1]->str);
+                break;
             }
-            break;
-        }
 
-        case PS_FILL: { // fill the instruction with value defined in tokens[1]
-            uint8_t type = literal_type(tokens[1]);
+            case PS_FILL: { // fill the instruction with value defined in toks[1]
+                uint8_t type = literal_type(toks[1]);
 
-            if (type != LIT_RES) {
-                uint16_t off = parse_literal(type, tokens[1]);
-                add_to_output_buffer(outbuf, *address, off, ln);
-                *address += 1;
-            } else if ((sym_addr = symbol_address(symtab, tokens[1])) > 0) {
-                add_to_output_buffer(outbuf, *address, sym_addr, ln);
-                *address += 1;
-            } else {
-                error(ln, "%s is not valid argument", tokens[1]->str);
+                if (type != LIT_RES) {
+                    uint16_t off = parse_literal(type, toks[1]);
+                    outputbuf_add(obuf, *p_addr, off, lidx);
+                    *p_addr += 1;
+                } else if ((sym_addr = symtab_get(st, toks[1])) > 0) {
+                    outputbuf_add(obuf, *p_addr, sym_addr, lidx);
+                    *p_addr += 1;
+                } else {
+                    error(lidx, "%s is not valid argument", toks[1]->str);
+                }
+                break;
             }
-            break;
-        }
 
-        case PS_STRINGZ: { // place a string starting from current instruction
-            for (uint16_t i = 0; i < tokens[1]->size; i++) {
-                add_to_output_buffer(outbuf, *address, tokens[1]->str[i], ln);
-                *address += 1;
+            case PS_STRINGZ: { // place a string starting from current instruction
+                uint16_t i;
+
+                for (i = 0; i < toks[1]->size; i++) {
+                    outputbuf_add(obuf, *p_addr, toks[1]->str[i], lidx);
+                    *p_addr += 1;
+                }
+                break;
             }
-            break;
-        }
 
-        default: {
-            warning(ln, "%s ignored", tokens[0]->str);
-        }
+            default: {
+                warning(lidx, "%s ignored", toks[0]->str);
+            }
         }
     } else {
-        error(ln, "Unknown token %s", tokens[0]->str);
+        error(lidx, "Unknown token %s", toks[0]->str);
     }
-
     return end_found;
 }
 
 void assemble(
-    OutputBuffer *outbuf,
-    LineList *lines,
-    SymbolTable *symtab,
-    FileList *files,
-    char *filename)
-{
-    open_file_list(files, filename);
+    InputBuf *ibuf,     // input buffer (assembly lines)
+    OutputBuf *obuf,    // output buffer (machine codes & addresses)
+    SymTab *st,         // symbol table (symbol-address pairs)
+    FileList *fl,       // list of working files
+    char *src_name      // name of assembly source file 
+) {
+    uint32_t lidx = 1;          // current instruction line index
+    uint16_t addr = 0;          // instruction address
+    uint32_t orig_idx = 0;      // index in input buffer that .orig is at
+    char str[MAX_LINE_LEN + 1]; // store instruction line read from source file
+    uint8_t end = 0;            // check if it's the end of each pass 
+    Line *ln;
+    uint16_t i;
 
+    filelist_open(fl, src_name);
     if (errcnt > 0) {
         return;
     }
 
-    uint32_t line_num = 1;
-    uint16_t address = 0;
-    uint32_t orig_idx = 0;
-
-    if (find_orig(files, outbuf, lines, &line_num)) {
-        address = outbuf->instructs[0];
-        orig_idx = lines->size;
+    if (find_orig(fl, ibuf, obuf, &lidx)) {
+        addr = obuf->instr[0];
+        orig_idx = ibuf->size;
     } else {
         error(0, ".ORIG not found");
         return;
     }
 
-    char str[MAX_LINE_LEN + 1];
-    uint8_t end = 0;
-
     // pass one: read lines from source code file and validate them
     // and create a symbol table
-    line_num++;
-    for (; fgets(str, MAX_LINE_LEN + 1, files->src) != NULL; line_num++) {
-        Line *line = tokenize(line_num, str);
+    lidx++;
+    for (; fgets(str, MAX_LINE_LEN + 1, fl->src) != NULL; lidx++) {
+        ln = line_new(lidx, str);
 
         // case when line has no instruction
-        if (line->token_count == 0) {
-            free_line(line);
+        if (ln->tokcnt == 0) {
+            line_del(ln);
             continue;
         }
 
-        end = validate_line(lines, symtab, line, &address);
+        end = validate_line(ibuf, st, ln, &addr);
         if (end) {
             break;
         }
     }
-
     if (errcnt > 0) {
         return;
     }
 
     // pass two: generate machine codes from assembly instructions and symbol table
-    uint16_t idx;
-    address = outbuf->instructs[0]; // move program address back to ORIG
+    addr = obuf->instr[0]; // move program address back to ORIG
 
-    for (idx = orig_idx; idx < lines->size; idx++) {
-        Line *line = get_line(lines, idx);
-        generate_machine_code(outbuf, symtab, line, &address);
+    for (i = orig_idx; i < ibuf->size; i++) {
+        ln = inputbuf_get(ibuf, i);
+        end = generate_machine_code(obuf, st, ln, &addr);
+        if (end) {
+            break;
+        }
     }
-
     if (errcnt > 0) {
         return;
     }
 
     // output to files, write_object() is called last due to the swapping
-    // of endianness in the elements of outbuf->instructs there
-    write_symbol_table(symtab, files->sym);
-    write_listing(outbuf, files->lst, files->src);
-    write_object(outbuf, files->obj);
+    // of endianness in the elements of obuf->instr there
+    write_sym(st, fl->sym);
+    write_lst(obuf, fl->lst, fl->src);
+    write_obj(obuf, fl->obj);
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     // show usage guide
     if (argc != 2) {
         printf("%s [asm file]\n", argv[0]);
@@ -1616,23 +1531,23 @@ int main(int argc, char **argv)
     }
 
     // check if filename argument is an assembly file;
-    if (!check_extension(argv[1], ".asm")) {
-        printf("%s is not an assembly file", argv[1]);
+    if (!extension_check(argv[1], ".asm")) {
+        printf("%s is not an assembly file\n", argv[1]);
         exit(2);
     }
 
-    OutputBuffer *outbuf = create_output_buffer();
-    LineList *lines = create_line_list();
-    SymbolTable *symtab = create_symbol_table();
-    FileList *files = malloc(sizeof *files);
+    OutputBuf *obuf = outputbuf_new();
+    InputBuf *ibuf = inputbuf_new();
+    SymTab *st = symtab_new();
+    FileList *fl = malloc(sizeof *fl);
 
-    assemble(outbuf, lines, symtab, files, argv[1]);
+    assemble(ibuf, obuf, st, fl, argv[1]);
 
-    close_file_list(files);
-    free(files);
-    free_line_list(lines);
-    free_output_buffer(outbuf);
-    free_symbol_table(symtab);
+    filelist_close(fl);
+    free(fl);
+    inputbuf_del(ibuf);
+    outputbuf_del(obuf);
+    symtab_del(st);
 
     if (errcnt > 0) {
         clean_output(argv[1]);
