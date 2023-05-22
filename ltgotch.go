@@ -50,7 +50,9 @@ type Value int
 
 func (v Value) toString() string {
 	switch {
-	case v >= 1 && v <= 10:
+	case v == 1:
+		return "A"
+	case v >= 2 && v <= 10:
 		return fmt.Sprintf("%d", int(v))
 	case v == 11:
 		return "J"
@@ -76,27 +78,27 @@ func (i *CardInfo) toString() string {
 	return s
 }
 
-type LogInfo struct {
-	card      CardInfo
+type Record struct {
+	card      *CardInfo
 	startTime time.Time
 	task      string
-	number    int
+	reps      int
 }
 
 type AlmightyThreatener struct {
-	deck  []CardInfo
+	deck  []*CardInfo
 	tasks []string
-	logs  []LogInfo
+	log   []*Record
 }
 
-func newDeck() []CardInfo {
-	deck := []CardInfo{}
+func newDeck() []*CardInfo {
+	deck := []*CardInfo{}
 	// insert cards to deck
-	deck = append(deck, CardInfo{suit: Joker1, value: 0})
-	deck = append(deck, CardInfo{suit: Joker2, value: 0})
+	deck = append(deck, &CardInfo{suit: Joker1, value: 0})
+	deck = append(deck, &CardInfo{suit: Joker2, value: 0})
 	for s := Spade; s <= Heart; s++ {
 		for v := 1; v <= 13; v++ {
-			deck = append(deck, CardInfo{ suit: s, value: Value(v) })
+			deck = append(deck, &CardInfo{suit: s, value: Value(v)})
 		}
 	}
 	// shuffle deck
@@ -116,7 +118,7 @@ func newAlmightyThreatener() (*AlmightyThreatener, error) {
 			Joker1:  "hindu squat",
 			Joker2:  "half-moon pushup",
 		},
-		logs: []LogInfo{},
+		log: []*Record{},
 	}
 	return res, nil
 }
@@ -129,38 +131,66 @@ func newAlmightyThreatener() (*AlmightyThreatener, error) {
 // 	}
 // }
 
-func readYNFromStdin(scanner *bufio.Scanner) byte {
+func readChar(scanner *bufio.Scanner, cue string, chars string) byte {
 	for {
-		fmt.Printf("Continue? (y/N) ")
+		fmt.Print(cue)
 		scanner.Scan()
-		c := scanner.Text()[0]
-		if c == 'y' || c == 'N' {
-			return c
+		opt := scanner.Text()[0]
+		allowed := []byte(chars)
+		if len(allowed) == 0 {
+			return opt
+		}
+		for _, c := range allowed {
+			if opt == c {
+				return opt
+			}
 		}
 	}
 	return '\000'
 }
 
-func (t *AlmightyThreatener) run() error {
+func (t *AlmightyThreatener) getRecord(currentCard *CardInfo) *Record {
+	currentTask := t.tasks[currentCard.suit]
+	currentReps := int(currentCard.value)
+	if currentCard.suit == Spade || currentCard.suit == Club {
+		currentReps *= 2
+	}
+	rec := &Record{
+		card:      currentCard,
+		startTime: time.Now(),
+		task:      currentTask,
+		reps:      currentReps,
+	}
+	t.log = append(t.log, rec)
+	return rec
+}
+
+func (t *AlmightyThreatener) printLog() {
+	fmt.Printf("\033[H\033[2JCards drawn: %d\n", len(t.log))
+	for i, rec := range t.log {
+		fmt.Printf("[%d] [%s] %s %s(%d)\n", i+1, rec.startTime.Format(time.ANSIC), (*(rec.card)).toString(), rec.task, rec.reps)
+	}
+}
+
+func (t *AlmightyThreatener) run() {
 	scanner := bufio.NewScanner(os.Stdin)
-
-	for _, x := range t.deck {
-		move := t.tasks[x.suit]
-		reps := int(x.value)
-		if x.suit == Spade || x.suit == Club {
-			reps *= 2
-		}
-		threaten(&x, move, reps)
-		// todo: logs
-
-		if readYNFromStdin(scanner) == 'N' {
+	for i, card := range t.deck {
+		rec := t.getRecord(card)
+		threaten(rec.card, rec.task, rec.reps)
+		if i == len(t.deck)-1 {
+			fmt.Println("Deck completed")
+			break
+		} else if readChar(scanner, "Continue? (y/N) ", "yN") == 'N' {
 			break
 		}
 	}
-	return nil
+	if readChar(scanner, "View log? (y/N) ", "yN") == 'y' {
+		t.printLog()
+	}
 }
 
 func threaten(card *CardInfo, task string, reps int) {
+	clrSeq := "\033[H\033[2J"
 	lowTierGod := `
 ⠀⠀⢵⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⠀⠀
 ⠀⡀⠈⢧⠠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡎⠀⠀
@@ -180,12 +210,16 @@ func threaten(card *CardInfo, task string, reps int) {
 ⣿⣿⣿⣿⠏⠀⠀⠀⠁⠀⠆⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⣿⣿⣿⠟⠃⠀⠀⠈⠺⠛
 ⠉⠙⠙⠁⠀⠀⠀⠀⠀⠀⠸⡄⠀⢤⣶⣶⣿⣿⣿⣿⣿⠿⠋⠁⠀⠀⠀⠀⠀⠀⠀
 ⠄⠀⠀⠀⠀⠀⢀⡀⠤⠔⠒⠈⠳⡦⣿⣿⡿⠿⠛⠉⠁⠀⠀⠀⠀⠀⠀⣀⠄⠂⠙`
-	fmt.Printf("\033[H\033[2J%s is drawn", card.toString())
-	time.Sleep(3 * time.Second)
-	fmt.Printf("\033[H\033[2JYou should do %d %s(s)", reps, task)
+
+	fmt.Print(clrSeq)
+	fmt.Printf("%s is drawn", card.toString())
+	time.Sleep(time.Second)
+	fmt.Print(clrSeq)
+	fmt.Printf("You should do %d %s(s)", reps, task)
 	fmt.Println(lowTierGod)
 	time.Sleep(time.Second)
-	fmt.Printf("\033[H\033[2JYou should do %d %s(s) NOW!", reps, task)
+	fmt.Print(clrSeq)
+	fmt.Printf("You should do %d %s(s) NOW!", reps, task)
 	fmt.Println(lowTierGod)
 }
 
