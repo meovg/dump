@@ -1,3 +1,9 @@
+# markov algorithm interpreter
+# this program takes in path of file containing rules (and other options, run with --help for details)
+# and execute markov algorithm on input data from standard input
+# details on markov algorithm: https://en.wikipedia.org/wiki/Markov_algorithm
+# for syntax: https://mao.snuke.org/#about
+
 import argparse
 import itertools
 import sys

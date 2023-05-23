@@ -1,3 +1,6 @@
+# this is an error-prone script to download all media of a 4chan thread
+# at this point, i'm still assuming that anons are kind enough to not post screamers
+
 import argparse
 import os
 import time
