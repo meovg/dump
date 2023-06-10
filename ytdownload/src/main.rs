@@ -1,3 +1,5 @@
+/// this software is already deprecated after subsequent changes in Youtube API
+
 use clap::Parser;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::fs;
@@ -59,6 +61,8 @@ fn main() {
         }
         Ok(info) => info,
     };
+
+    println!("{:?}", video_info);
 
     let title = (if args.filename.is_empty() {
         format!("[{}] {}", video_id, get_video_title(&video_info).unwrap())

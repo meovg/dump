@@ -278,12 +278,8 @@ void keyboard_place(int x, int y, char c, int fore, int back) {
 // draw an onscreen keyboard starting at (x, y) 
 void keyboard_draw(void) {
     for (int i = 0; i < 26; i++) {
-        keyboard_place(
-            keyboard_start_x + keyboard_x[i],
-            keyboard_start_y + keyboard_y[i],
-            i + 'A',
-            F_WHITE, B_BLACK
-        );
+        keyboard_place(keyboard_start_x + keyboard_x[i], keyboard_start_y + keyboard_y[i],
+                       i + 'A', F_WHITE, B_BLACK);
     }
 }
 
@@ -292,32 +288,20 @@ void keyboard_color_tile(char c, int color) {
     int pos = c - 'A';
 
     switch (mask_get(keyboard_mask, pos)) {
-        case MSK_GREEN: break;
-        case MSK_YELLOW:
-            if (color == B_GREEN) {
-                keyboard_place(
-                    keyboard_start_x + keyboard_x[pos],
-                    keyboard_start_y + keyboard_y[pos],
-                    c,
-                    F_WHITE,
-                    color
-                );
-                mask_set(&keyboard_mask, pos, MSK_GREEN);
-            }
-            break;
-        default: {
-            int color_mask = (color == B_GREEN ? MSK_GREEN
-                : (color == B_YELLOW ? MSK_YELLOW
-                    : MSK_GREY));
-
-            keyboard_place(
-                keyboard_start_x + keyboard_x[pos],
-                keyboard_start_y + keyboard_y[pos],
-                c,
-                F_WHITE,
-                color
-            );
-            mask_set(&keyboard_mask, pos, color_mask);
+    case MSK_GREEN: break;
+    case MSK_YELLOW:
+        if (color == B_GREEN) {
+            keyboard_place(keyboard_start_x + keyboard_x[pos],
+                           keyboard_start_y + keyboard_y[pos], c, F_WHITE, color);
+            mask_set(&keyboard_mask, pos, MSK_GREEN);
+        }
+        break;
+    default: {
+        int color_mask =
+            (color == B_GREEN ? MSK_GREEN : (color == B_YELLOW ? MSK_YELLOW : MSK_GREY));
+        keyboard_place(keyboard_start_x + keyboard_x[pos],
+                       keyboard_start_y + keyboard_y[pos], c, F_WHITE, color);
+        mask_set(&keyboard_mask, pos, color_mask);
         }
     }
 }
@@ -484,9 +468,14 @@ void game(const char answer[5]) {
 
         for (int j = 0; j < 5; j++) {
             switch (mask_get(mask, j)) {
-                case MSK_GREEN:     tile_color = B_GREEN; break;
-                case MSK_YELLOW:    tile_color = B_YELLOW; break;
-                default:            tile_color = B_GREY;
+            case MSK_GREEN:
+                tile_color = B_GREEN;
+                break;
+            case MSK_YELLOW:
+                tile_color = B_YELLOW;
+                break;
+            default:
+                tile_color = B_GREY;
             }
 
             grid_place(x, y, uppercase(guess[j]), F_WHITE, tile_color);
