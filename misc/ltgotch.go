@@ -1,13 +1,11 @@
-/**
- * A tiny program that threatens you to take the Gotch bible, a card-deck workout method by a
- * legendary wrestler named Karl Gotch. Refer to https://andreian.com/gotch-bible/ for details
- *
- * This program simulates the task of shuffling deck, and hands out exercise in the format of
- * "You should do [exercise], NOW" along with a braille art of LowTierGod (for the lel).
- *
- * As this is just a toy program to learn Go, there might be some additions and modifications
- * later on, idk.
- */
+// A tiny program that threatens you to take the Gotch bible, a card-deck workout method by a
+// legendary wrestler named Karl Gotch. Refer to https://andreian.com/gotch-bible/ for details
+//
+// This program simulates the task of shuffling deck, and hands out exercise in the format of
+// "You should do [exercise], NOW" along with a braille art of LowTierGod (for the lel).
+//
+// As this is just a toy program to learn Go, there might be some additions and modifications
+// later on, idk.
 
 package main
 
@@ -20,7 +18,7 @@ import (
 )
 
 const (
-	clrSeq = "\033[H\033[2J"
+	clrSeq     = "\033[H\033[2J"
 	lowTierGod = `
 ⠀⠀⢵⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⠀⠀
 ⠀⡀⠈⢧⠠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡎⠀⠀
@@ -40,7 +38,6 @@ const (
 ⣿⣿⣿⣿⠏⠀⠀⠀⠁⠀⠆⠀⠀⠀⠀⠀⢀⣿⣿⣿⣿⣿⣿⣿⠟⠃⠀⠀⠈⠺⠛
 ⠉⠙⠙⠁⠀⠀⠀⠀⠀⠀⠸⡄⠀⢤⣶⣶⣿⣿⣿⣿⣿⠿⠋⠁⠀⠀⠀⠀⠀⠀⠀
 ⠄⠀⠀⠀⠀⠀⢀⡀⠤⠔⠒⠈⠳⡦⣿⣿⡿⠿⠛⠉⠁⠀⠀⠀⠀⠀⠀⣀⠄⠂⠙`
-
 )
 
 type Suit int
@@ -117,6 +114,7 @@ type AlmightyThreatener struct {
 
 func newDeck() []*CardInfo {
 	deck := []*CardInfo{}
+
 	// insert cards to deck
 	deck = append(deck, &CardInfo{suit: Joker1, value: 0})
 	deck = append(deck, &CardInfo{suit: Joker2, value: 0})
@@ -125,6 +123,7 @@ func newDeck() []*CardInfo {
 			deck = append(deck, &CardInfo{suit: s, value: Value(v)})
 		}
 	}
+
 	// shuffle deck
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(deck), func(i, j int) { deck[i], deck[j] = deck[j], deck[i] })
@@ -146,14 +145,6 @@ func newAlmightyThreatener() (*AlmightyThreatener, error) {
 	}
 	return res, nil
 }
-
-// func (t *AlmightyThreatener) dummyPrint() {
-// 	fmt.Printf("Size of deck: %d\n", len(t.deck))
-// 	for _, x := range t.deck {
-// 		fmt.Printf("It's a %s. ", x.toString())
-// 		fmt.Printf("Do %d %s(s)\n", x.value, t.tasks[x.suit])
-// 	}
-// }
 
 func readChar(scanner *bufio.Scanner, cue string, chars string) byte {
 	for {
@@ -193,7 +184,8 @@ func (t *AlmightyThreatener) printLog() {
 	fmt.Print(clrSeq)
 	fmt.Printf("Cards drawn: %d\n", len(t.log))
 	for i, rec := range t.log {
-		fmt.Printf("[%d] [%s] %s %s(%d)\n", i+1, rec.startTime.Format(time.ANSIC), rec.card.toString(), rec.task, rec.reps)
+		fmt.Printf("[%d] [%s] %s %s(%d)\n", i+1, rec.startTime.Format(time.ANSIC),
+			rec.card.toString(), rec.task, rec.reps)
 	}
 }
 
