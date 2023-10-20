@@ -164,17 +164,17 @@ func readChar(scanner *bufio.Scanner, cue string, chars string) byte {
 	return '\000'
 }
 
-func (t *AlmightyThreatener) getRecord(currentCard *CardInfo) *Record {
-	currentTask := t.tasks[currentCard.suit]
-	currentReps := int(currentCard.value)
-	if currentCard.suit == Spade || currentCard.suit == Club {
-		currentReps *= 2
+func (t *AlmightyThreatener) getRecord(card *CardInfo) *Record {
+	task := t.tasks[card.suit]
+	reps := int(card.value)
+	if card.suit == Spade || card.suit == Club {
+		reps *= 2
 	}
 	rec := &Record{
-		card:      currentCard,
+		card:      card,
 		startTime: time.Now(),
-		task:      currentTask,
-		reps:      currentReps,
+		task:      task,
+		reps:      reps,
 	}
 	t.log = append(t.log, rec)
 	return rec
@@ -184,8 +184,14 @@ func (t *AlmightyThreatener) printLog() {
 	fmt.Print(clrSeq)
 	fmt.Printf("Cards drawn: %d\n", len(t.log))
 	for i, rec := range t.log {
-		fmt.Printf("[%d] [%s] %s %s(%d)\n", i+1, rec.startTime.Format(time.ANSIC),
-			rec.card.toString(), rec.task, rec.reps)
+		fmt.Printf(
+			"[%d] [%s] %s %s(%d)\n",
+			i+1,
+			rec.startTime.Format(time.ANSIC),
+			rec.card.toString(),
+			rec.task,
+			rec.reps,
+		)
 	}
 }
 
