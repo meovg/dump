@@ -1,0 +1,7 @@
+*.bin
+*.lst
+*.sym
+*.obj
+*.exe
+*.asm
+/test-sample
