@@ -1,3 +1,4 @@
+*.o
+*~
 models
 dataset
-*.clang-format
