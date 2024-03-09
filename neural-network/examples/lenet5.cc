@@ -1,6 +1,6 @@
 // LeNet-5 architecture example
 
-#include "../headers/network.h"
+#include "network.h"
 
 using namespace ann;
 
