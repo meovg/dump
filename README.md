@@ -8,7 +8,7 @@ A dumb program that outputs `TheGame` to the console
 #include <stdio.h>
 
 int main(void) {
-    long long a = 28549237224859732
+    long long a = 28549237224859732;
     puts(&a);
 }
 ```
