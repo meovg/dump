@@ -18,14 +18,14 @@ public:
     void forward(const MatXf &prev_out, bool is_training) override;
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
     void zero_grad() override;
-    std::vector<int> output_shape() override;
+    std::vector<int> output_shape() const override;
 };
 
 Flatten::Flatten() : Layer(LayerType::FLATTEN) {}
 
 void Flatten::set_layer(const std::vector<int> &input_shape) {
-    assert(input_shape.size() == 4 && "Flatten::set_layer(const vector<int>&): "
-                                      "Must be followed by 2d layer.");
+    assert(input_shape.size() == 4 &&
+           "Flatten::set_layer(const vector<int>&): Must be followed by 2d layer.");
     batch = input_shape[0];
     channels = input_shape[1];
     height = input_shape[2];
@@ -46,7 +46,7 @@ void Flatten::backward(const MatXf &prev_out, MatXf &prev_delta) {
 
 void Flatten::zero_grad() { delta.setZero(); }
 
-std::vector<int> Flatten::output_shape() {
+std::vector<int> Flatten::output_shape() const {
     return {batch, channels, height, width};
 }
 

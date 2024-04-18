@@ -18,16 +18,14 @@ public:
         n_label = input_shape[1];
     }
 
-    virtual float calc_loss(const MatXf &prev_out, const VecXi &labels,
-                            MatXf &prev_delta) = 0;
+    virtual float calc_loss(const MatXf &prev_out, const VecXi &labels, MatXf &prev_delta) = 0;
 };
 
 class MSELoss : public Loss {
 public:
     MSELoss() : Loss() {}
 
-    float calc_loss(const MatXf &prev_out, const VecXi &labels,
-                    MatXf &prev_delta) override {
+    float calc_loss(const MatXf &prev_out, const VecXi &labels, MatXf &prev_delta) override {
         float loss_batch = 0.f, loss = 0.f;
         prev_delta = prev_out;
         for (int n = 0; n < batch; n++) {
@@ -46,8 +44,7 @@ class CrossEntropyLoss : public Loss {
 public:
     CrossEntropyLoss() : Loss() {}
 
-    float calc_loss(const MatXf &prev_out, const VecXi &labels,
-                    MatXf &prev_delta) {
+    float calc_loss(const MatXf &prev_out, const VecXi &labels, MatXf &prev_delta) override {
         float loss_batch = 0.f;
         prev_delta = prev_out;
         for (int n = 0; n < batch; n++) {

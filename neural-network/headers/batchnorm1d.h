@@ -30,7 +30,10 @@ public:
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
     void update_weight(float lr, float decay) override;
     void zero_grad() override;
-    std::vector<int> output_shape() override;
+    std::vector<int> output_shape() const override;
+    int count_params() const override;
+    void write_params(std::fstream &fs) const override;
+    void read_params(std::fstream &fs) const override;
 
 private:
     void calc_batch_mu(const MatXf &prev_out);
@@ -44,8 +47,7 @@ BatchNorm1d::BatchNorm1d(float eps, float momentum)
 
 void BatchNorm1d::set_layer(const std::vector<int> &input_shape) {
     assert(input_shape.size() == 2 &&
-           "BatchNorm1d::set_layer(const vector<int>&): Must be followed by "
-           "Linear layer.");
+           "BatchNorm1d::set_layer(const vector<int>&): Must be followed by Linear layer.");
 
     batch = input_shape[0];
     n_feat = input_shape[1];
@@ -164,6 +166,26 @@ void BatchNorm1d::zero_grad() {
     sum2.setZero();
 }
 
-std::vector<int> BatchNorm1d::output_shape() { return {batch, n_feat}; }
+std::vector<int> BatchNorm1d::output_shape() const {
+    return {batch, n_feat};
+}
+
+int BatchNorm1d::count_params() const {
+    return (int)move_mu.size() + (int)move_var.size() + (int)gamma.size(); + (int)beta.size();
+}
+
+void BatchNorm1d::write_params(std::fstream &fs) const {
+    fs.write((char *)move_mu.data(), sizeof(float) * move_mu.size());
+    fs.write((char *)move_var.data(), sizeof(float) * move_var.size());
+    fs.write((char *)gamma.data(), sizeof(float) * gamma.size());
+    fs.write((char *)beta.data(), sizeof(float) * beta.size());
+}
+
+void BatchNorm1d::read_params(std::fstream &fs) const {
+    fs.read((char *)move_mu.data(), sizeof(float) * move_mu.size());
+    fs.read((char *)move_var.data(), sizeof(float) * move_var.size());
+    fs.read((char *)gamma.data(), sizeof(float) * gamma.size());
+    fs.read((char *)beta.data(), sizeof(float) * beta.size());
+}
 
 } // namespace ann

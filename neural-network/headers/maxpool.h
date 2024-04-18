@@ -28,7 +28,7 @@ public:
     void forward(const MatXf &prev_out, bool is_training) override;
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
     void zero_grad() override;
-    std::vector<int> output_shape() override;
+    std::vector<int> output_shape() const override;
 };
 
 MaxPool2d::MaxPool2d(int kernel_size, int stride)
@@ -94,6 +94,8 @@ void MaxPool2d::backward(const MatXf &prev_out, MatXf &prev_delta) {
 
 void MaxPool2d::zero_grad() { delta.setZero(); }
 
-std::vector<int> MaxPool2d::output_shape() { return {batch, ch, oh, ow}; }
+std::vector<int> MaxPool2d::output_shape() const {
+    return {batch, ch, oh, ow};
+}
 
 } // namespace ann

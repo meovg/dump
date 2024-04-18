@@ -22,7 +22,10 @@ public:
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
     void update_weight(float lr, float decay) override;
     void zero_grad() override;
-    std::vector<int> output_shape() override;
+    std::vector<int> output_shape() const override;
+    int count_params() const override;
+    void write_params(std::fstream &fs) const override;
+    void read_params(std::fstream &fs) const override;
 };
 
 Linear::Linear(int in_features, int out_features, std::string option)
@@ -86,6 +89,22 @@ void Linear::zero_grad() {
     db.setZero();
 }
 
-std::vector<int> Linear::output_shape() { return {batch, out_feat}; }
+std::vector<int> Linear::output_shape() const {
+    return {batch, out_feat};
+}
+
+int Linear::count_params() const {
+    return (int)W.size() + (int)b.size();
+}
+
+void Linear::write_params(std::fstream &fs) const {
+    fs.write((char *)W.data(), sizeof(float) * W.size());
+    fs.write((char *)b.data(), sizeof(float) * b.size());
+}
+
+void Linear::read_params(std::fstream &fs) const {
+    fs.read((char *)W.data(), sizeof(float) * W.size());
+    fs.read((char *)b.data(), sizeof(float) * b.size());
+}
 
 } // namespace ann

@@ -30,7 +30,10 @@ public:
     virtual void backward(const MatXf &prev_out, MatXf &prev_delta) = 0;
     virtual void update_weight(float lr, float decay) { return; }
     virtual void zero_grad() { return; }
-    virtual std::vector<int> output_shape() = 0;
+    virtual std::vector<int> output_shape() const = 0;
+    virtual int count_params() const { return 0; }
+    virtual void write_params(std::fstream &fs) const { return; }
+    virtual void read_params(std::fstream &fs) const { return; }
 };
 
 } // namespace ann

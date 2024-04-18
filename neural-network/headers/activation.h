@@ -32,14 +32,12 @@ public:
             height = input_shape[2];
             width = input_shape[3];
             out_block_size = batch * channels * height * width;
-
             output.resize(batch * channels, height * width);
             delta.resize(batch * channels, height * width);
         } else {
             batch = input_shape[0];
             height = input_shape[1];
             out_block_size = batch * height;
-
             output.resize(batch, height);
             delta.resize(batch, height);
         }
@@ -51,7 +49,7 @@ public:
 
     void zero_grad() override { delta.setZero(); }
 
-    std::vector<int> output_shape() override {
+    std::vector<int> output_shape() const override {
         if (channels == 0)
             return {batch, height};
         return {batch, channels, height, width};
@@ -63,11 +61,9 @@ public:
     Tanh() : Activation() {}
 
     void forward(const MatXf &prev_out, bool is_training) override {
-        assert(!is_last && "Tanh::forward(const vector<float>, bool): Hidden "
-                           "layer activation.");
-        std::transform(
-            prev_out.data(), prev_out.data() + out_block_size, output.data(),
-            [](const float &e) { return 2 / (1 + std::exp(-2.f * e)) - 1; });
+        assert(!is_last && "Tanh::forward(const vector<float>, bool): Hidden layer activation.");
+        std::transform(prev_out.data(), prev_out.data() + out_block_size, output.data(),
+                       [](const float &e) { return 2 / (1 + std::exp(-2.f * e)) - 1; });
     }
 
     void backward(const MatXf &prev_out, MatXf &prev_delta) override {
@@ -85,10 +81,9 @@ public:
     Sigmoid() : Activation() {}
 
     void forward(const MatXf &prev_out, bool is_training) override {
-        assert(is_last && "Sigmoid::forward(const vector<float>, bool): Output "
-                          "layer activation.");
-        std::transform(prev_out.data(), prev_out.data() + out_block_size,
-                       output.data(),
+        assert(is_last &&
+               "Sigmoid::forward(const vector<float>, bool): Output layer activation.");
+        std::transform(prev_out.data(), prev_out.data() + out_block_size, output.data(),
                        [](const float &e) { return 1 / (1 + std::exp(-e)); });
     }
 
@@ -108,10 +103,9 @@ public:
 
     void set_layer(const std::vector<int> &input_shape) override {
         assert(input_shape.size() == 2 &&
-               "Softmax::set_layer(const vector<int>&): "
-               "Does not support 2d activation.");
-        assert(is_last && "Softmax::set_layer(const vector<int>&): Does not "
-                          "support hidden layer activation.");
+               "Softmax::set_layer(const vector<int>&): Does not support 2d activation.");
+        assert(is_last && "Softmax::set_layer(const vector<int>&): "
+                          "Does not support hidden layer activation.");
         batch = input_shape[0];
         height = input_shape[1];
         out_block_size = batch * height;
@@ -126,15 +120,13 @@ public:
             const float *begin = prev_out.data() + offset;
             float max = *std::max_element(begin, begin + height);
             float sum = sum_exp(begin, height, max);
-            std::transform(
-                begin, begin + height, output.data() + offset,
-                [&](const float &e) { return std::exp(e - max) / sum; });
+            std::transform(begin, begin + height, output.data() + offset,
+                           [&](const float &e) { return std::exp(e - max) / sum; });
         }
     }
 
     void backward(const MatXf &prev_out, MatXf &prev_delta) override {
-        std::copy(delta.data(), delta.data() + out_block_size,
-                  prev_delta.data());
+        std::copy(delta.data(), delta.data() + out_block_size, prev_delta.data());
     }
 };
 
@@ -144,10 +136,9 @@ public:
 
     void set_layer(const std::vector<int> &input_shape) override {
         assert(input_shape.size() == 2 &&
-               "LogSoftmax::set_layer(const vector<int>&): Does not support 2d "
-               "activation.");
-        assert(is_last && "LogSoftmax::set_layer(const vector<int>&): Does not "
-                          "support hidden layer activation.");
+               "LogSoftmax::set_layer(const vector<int>&): Does not support 2d activation.");
+        assert(is_last && "LogSoftmax::set_layer(const vector<int>&): "
+                          "Does not support hidden layer activation.");
         batch = input_shape[0];
         height = input_shape[1];
         out_block_size = batch * height;
@@ -192,8 +183,7 @@ public:
 
     void forward(const MatXf &prev_out, bool is_training) override {
         output.setZero();
-        std::transform(prev_out.data(), prev_out.data() + out_block_size,
-                       output.data(),
+        std::transform(prev_out.data(), prev_out.data() + out_block_size, output.data(),
                        [](const float &e) { return std::max(0.f, e); });
     }
 

@@ -13,8 +13,7 @@ static int reverse_int(int i) {
 
 namespace ann {
 
-MatXf read_mnist(std::string data_dir, std::string fname, int n_imgs,
-                 bool train = true) {
+MatXf read_mnist(std::string data_dir, std::string fname, int n_imgs, bool train = true) {
     MatXf img;
 
     std::string path = data_dir + "/" + fname;

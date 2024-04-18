@@ -18,10 +18,8 @@ private:
 
 public:
     DataLoader();
-    DataLoader(MatXf &X, VecXi &Y, int batch, int channels, int height,
-               int width, bool shuffle);
-    void load(MatXf &X, VecXi &Y, int batch, int channels, int height,
-              int width, bool shuffle);
+    DataLoader(MatXf &X, VecXi &Y, int batch, int channels, int height, int width, bool shuffle);
+    void load(MatXf &X, VecXi &Y, int batch, int channels, int height, int width, bool shuffle);
     int size() const;
     std::vector<int> input_shape() const;
     MatXf get_x(int i) const;
@@ -63,11 +61,8 @@ void DataLoader::generate_batch_indices(bool shuffle) {
     std::iota(rand_num.begin(), rand_num.end(), 0);
 
     if (shuffle) {
-        unsigned seed = (unsigned)std::chrono::system_clock::now()
-                            .time_since_epoch()
-                            .count();
-        std::shuffle(rand_num.begin(), rand_num.end(),
-                     std::default_random_engine(seed));
+        unsigned seed = (unsigned)std::chrono::system_clock::now().time_since_epoch().count();
+        std::shuffle(rand_num.begin(), rand_num.end(), std::default_random_engine(seed));
     }
 
     batch_indices.resize(n_batch, std::vector<int>(batch));

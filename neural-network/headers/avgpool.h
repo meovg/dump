@@ -24,7 +24,7 @@ public:
     void forward(const MatXf &prev_out, bool is_training) override;
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
     void zero_grad() override;
-    std::vector<int> output_shape() override;
+    std::vector<int> output_shape() const override;
 };
 
 AvgPool2d::AvgPool2d(int kernel_size, int stride)
@@ -99,6 +99,8 @@ void AvgPool2d::backward(const MatXf &prev_out, MatXf &prev_delta) {
 
 void AvgPool2d::zero_grad() { delta.setZero(); }
 
-std::vector<int> AvgPool2d::output_shape() { return {batch, ch, oh, ow}; }
+std::vector<int> AvgPool2d::output_shape() const {
+    return {batch, ch, oh, ow};
+}
 
 } // namespace ann

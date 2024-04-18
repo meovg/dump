@@ -3,8 +3,7 @@
 #include "layer.h"
 
 static void col2im_add_pixel(float *im, int height, int width, int channels,
-                             int row, int col, int channel, int pad,
-                             float val) {
+                             int row, int col, int channel, int pad, float val) {
     row -= pad;
     col -= pad;
 
@@ -37,9 +36,8 @@ static void col2im(const float *data_col, int channels, int height, int width,
     }
 }
 
-static float im2col_get_pixel(const float *im, int height, int width,
-                              int channels, int row, int col, int channel,
-                              int pad) {
+static float im2col_get_pixel(const float *im, int height, int width, int channels,
+                              int row, int col, int channel, int pad) {
     row -= pad;
     col -= pad;
 
@@ -103,7 +101,10 @@ public:
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
     void update_weight(float lr, float decay) override;
     void zero_grad() override;
-    std::vector<int> output_shape() override;
+    std::vector<int> output_shape() const override;
+    int count_params() const override;
+    void write_params(std::fstream &fs) const override;
+    void read_params(std::fstream &fs) const override;
 };
 
 Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int padding,
@@ -181,6 +182,22 @@ void Conv2d::zero_grad() {
     dbias.setZero();
 }
 
-std::vector<int> Conv2d::output_shape() { return {batch, oc, oh, ow}; }
+std::vector<int> Conv2d::output_shape() const {
+    return {batch, oc, oh, ow};
+}
+
+int Conv2d::count_params() const {
+    return (int)kernel.size() + (int)bias.size();
+}
+
+void Conv2d::write_params(std::fstream &fs) const {
+    fs.write((char *)kernel.data(), sizeof(float) * kernel.size());
+    fs.write((char *)bias.data(), sizeof(float) * bias.size());
+}
+
+void Conv2d::read_params(std::fstream &fs) const {
+    fs.read((char *)kernel.data(), sizeof(float) * kernel.size());
+    fs.read((char *)bias.data(), sizeof(float) * bias.size());
+}
 
 } // namespace ann

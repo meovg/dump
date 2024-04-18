@@ -1,6 +1,16 @@
 // LeNet-5 architecture example
 
+#include "activation.h"
+#include "convolutional.h"
+#include "data_loader.h"
+#include "file_manage.h"
+#include "flatten.h"
+#include "layer.h"
+#include "linear.h"
+#include "loss.h"
+#include "maxpool.h"
 #include "network.h"
+#include "optimizers.h"
 
 using namespace ann;
 
@@ -10,8 +20,7 @@ int main(void) {
     std::string data_dir = "../dataset";
 
     MatXf train_X = read_mnist(data_dir, "train-images-idx3-ubyte", n_train);
-    VecXi train_Y =
-        read_mnist_label(data_dir, "train-labels-idx1-ubyte", n_train);
+    VecXi train_Y = read_mnist_label(data_dir, "train-labels-idx1-ubyte", n_train);
     train_loader.load(train_X, train_Y, 32, ch, h, w, true);
 
     MatXf test_X = read_mnist(data_dir, "t10k-images-idx3-ubyte", n_test);
