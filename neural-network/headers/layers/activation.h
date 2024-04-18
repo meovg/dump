@@ -1,6 +1,6 @@
 #pragma once
 
-#include "layer.h"
+#include "../layer.h"
 
 static float sum_exp(const float *p, int size, float max) {
     float out = std::accumulate(p, p + size, 0.f,

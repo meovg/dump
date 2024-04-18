@@ -32,7 +32,6 @@ int main(int argc, char **argv) {
     if (get_error_count() > 0)
         clean_output(argv[1]);
 
-    printf("Yields %d error(s) and %d warning(s)\n",
-           get_error_count(), get_warning_count());
+    printf("Yields %d error(s) and %d warning(s)\n", get_error_count(), get_warning_count());
     return 0;
 }

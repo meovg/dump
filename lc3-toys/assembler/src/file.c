@@ -77,10 +77,7 @@ void clean_output(char *path) {
 
 // sequence used to print instructions in binary
 #define PRbinseq(x) \
-    binseq[x >> 12], \
-    binseq[(x >> 8) & 0xf], \
-    binseq[(x >> 4) & 0xf], \
-    binseq[x & 0xf]
+    binseq[x >> 12], binseq[(x >> 8) & 0xf], binseq[(x >> 4) & 0xf], binseq[x & 0xf]
 
 // writes assembled machine instructions to .obj file
 void write_obj(OutputBuf *obuf, FILE *obj) {

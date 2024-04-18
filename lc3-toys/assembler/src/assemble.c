@@ -16,9 +16,7 @@ static void find_orig(FileList *fl, InputBuf *ibuf, OutputBuf *obuf, uint32_t *p
             set_error(*p_lidx, "No literal operand found for .ORIG");
             is_halted = -1;
         } else if (line->tokens[1]->type != TK_LITERAL) {
-            set_error(*p_lidx,
-                      "%s is not a literal operand for .ORIG",
-                      line->tokens[1]->str);
+            set_error(*p_lidx, "%s is not a literal operand for .ORIG", line->tokens[1]->str);
             is_halted = -1;
         } else {
             uint16_t orig = parse_literal(line->tokens[1]);
@@ -45,8 +43,7 @@ static void check_symbol(SymTab *st, Token *tok, uint16_t *p_addr) {
     if (dupe == NULL)
         symtab_add(st, tok, *p_addr);
     else
-        set_warning(lidx,
-                    "Another symbol is pointing to address %04x: %s",
+        set_warning(lidx, "Another symbol is pointing to address %04x: %s",
                     *p_addr, dupe->key->str);
 }
 
@@ -68,18 +65,14 @@ static void check_operand_token_count(Token *optok, uint8_t tokcnt_left) {
     };
 
     uint32_t lidx = optok->lidx;
-    uint8_t opr_exp = optok->type == TK_OPCODE
-                      ? opcode_operand_cnt[optok->subtype]
-                      : pseudo_operand_cnt[optok->subtype];
+    uint8_t opr_exp = optok->type == TK_OPCODE ? opcode_operand_cnt[optok->subtype]
+                                               : pseudo_operand_cnt[optok->subtype];
 
     if (tokcnt_left > opr_exp)
-        set_warning(lidx,
-                    "%s requires %d operand(s), %d found",
+        set_warning(lidx, "%s requires %d operand(s), %d found",
                     optok->str, opr_exp, tokcnt_left);
     else if (tokcnt_left < opr_exp)
-        set_error(lidx,
-                  "%s requires %d operand(s) %d found",
-                  optok->str, opr_exp, tokcnt_left);
+        set_error(lidx, "%s requires %d operand(s) %d found", optok->str, opr_exp, tokcnt_left);
 }
 
 // checks type of operands in instructions with opcode
@@ -237,8 +230,7 @@ static uint8_t validate_line(InputBuf *ibuf, SymTab *st, Line *line, uint16_t *p
 // reads lines from assembly file and check for symbols, opcodes, operand count and
 // operand type then stores lines in input buffer and symbols in symbol table
 static void pass_one(InputBuf *ibuf, OutputBuf *obuf, SymTab *st,
-                     FileList *fl, uint32_t *p_lidx)
-{
+                     FileList *fl, uint32_t *p_lidx) {
     static char line_str[MAX_LINE_LEN + 1];
     uint8_t end_found = 0;
     uint16_t addr = obuf->instr[0];
@@ -484,8 +476,7 @@ static void handle_stringz(Token **toks, uint16_t *p_addr, OutputBuf *obuf) {
 
 // handles pseudo-operation (except ORIG and END)
 static void handle_pseudo_instruction(Token **toks, uint16_t *p_addr,
-                                      OutputBuf *obuf, SymTab *st)
-{
+                                      OutputBuf *obuf, SymTab *st) {
     switch (toks[0]->subtype) {
     case PS_BLKW:
         handle_blkw(toks, p_addr, obuf);

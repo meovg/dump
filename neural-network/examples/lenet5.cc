@@ -1,14 +1,14 @@
 // LeNet-5 architecture example
 
-#include "activation.h"
-#include "convolutional.h"
+#include "common.h"
 #include "data_loader.h"
 #include "file_manage.h"
-#include "flatten.h"
-#include "layer.h"
-#include "linear.h"
+#include "layers/activation.h"
+#include "layers/conv.h"
+#include "layers/flatten.h"
+#include "layers/linear.h"
+#include "layers/maxpool.h"
 #include "loss.h"
-#include "maxpool.h"
 #include "network.h"
 #include "optimizers.h"
 
