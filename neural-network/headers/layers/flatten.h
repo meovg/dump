@@ -21,7 +21,7 @@ public:
     std::vector<int> output_shape() const override;
 };
 
-Flatten::Flatten() : Layer(LayerType::FLATTEN) {}
+Flatten::Flatten() : Layer() {}
 
 void Flatten::set_layer(const std::vector<int> &input_shape) {
     assert(input_shape.size() == 4 &&

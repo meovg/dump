@@ -21,9 +21,7 @@ protected:
     int out_block_size;
 
 public:
-    Activation()
-        : Layer(LayerType::ACTIVATION), batch(0), channels(0), height(0),
-          width(0), out_block_size(0) {}
+    Activation() : Layer(), batch(0), channels(0), height(0), width(0), out_block_size(0) {}
 
     void set_layer(const std::vector<int> &input_shape) override {
         if (input_shape.size() == 4) {

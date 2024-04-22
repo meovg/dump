@@ -29,8 +29,7 @@ public:
 };
 
 Linear::Linear(int in_features, int out_features, std::string option)
-    : Layer(LayerType::LINEAR), batch(0), in_feat(in_features),
-      out_feat(out_features), option(option) {}
+    : Layer(), batch(0), in_feat(in_features), out_feat(out_features), option(option) {}
 
 void Linear::set_layer(const std::vector<int> &input_shape) {
     batch = input_shape[0];

@@ -28,7 +28,7 @@ public:
 };
 
 AvgPool2d::AvgPool2d(int kernel_size, int stride)
-    : Layer(LayerType::AVGPOOL2D), batch(0), ch(0), ih(0), iw(0), ihw(0), oh(0),
+    : Layer(), batch(0), ch(0), ih(0), iw(0), ihw(0), oh(0),
       ow(0), ohw(0), kh(kernel_size), kw(kernel_size), stride(stride) {}
 
 void AvgPool2d::set_layer(const std::vector<int> &input_shape) {

@@ -63,8 +63,7 @@ static void im2col(const float *data_im, int channels, int height, int width,
                 int im_col = w_offset + w * stride;
                 int col_index = (c * height_col + h) * width_col + w;
                 data_col[col_index] =
-                    im2col_get_pixel(data_im, height, width, channels, im_row,
-                                     im_col, c_im, pad);
+                    im2col_get_pixel(data_im, height, width, channels, im_row, im_col, c_im, pad);
             }
         }
     }
@@ -94,8 +93,7 @@ private:
 public:
     MatXf kernel;
     VecXf bias;
-    Conv2d(int in_channels, int out_channels, int kernel_size, int padding,
-           std::string option);
+    Conv2d(int in_channels, int out_channels, int kernel_size, int padding, std::string option);
     void set_layer(const std::vector<int> &input_shape) override;
     void forward(const MatXf &prev_out, bool is_training) override;
     void backward(const MatXf &prev_out, MatXf &prev_delta) override;
@@ -107,9 +105,8 @@ public:
     void read_params(std::fstream &fs) const override;
 };
 
-Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int padding,
-               std::string option)
-    : Layer(LayerType::CONV2D), batch(0), ic(in_channels), oc(out_channels),
+Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int padding, std::string option)
+    : Layer(), batch(0), ic(in_channels), oc(out_channels),
       ih(0), iw(0), ihw(0), oh(0), ow(0), ohw(0), kh(kernel_size),
       kw(kernel_size), pad(padding), option(option) {}
 

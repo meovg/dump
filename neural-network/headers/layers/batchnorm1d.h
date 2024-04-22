@@ -42,8 +42,7 @@ private:
 };
 
 BatchNorm1d::BatchNorm1d(float eps, float momentum)
-    : Layer(LayerType::BATCHNORM1D), batch(0), n_feat(0), eps(eps),
-      momentum(momentum) {}
+    : Layer(), batch(0), n_feat(0), eps(eps), momentum(momentum) {}
 
 void BatchNorm1d::set_layer(const std::vector<int> &input_shape) {
     assert(input_shape.size() == 2 &&
