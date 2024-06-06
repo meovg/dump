@@ -1,6 +1,7 @@
 #include <utility>
 
 #include "array.h"
+#include "utils.h"
 
 namespace nnv2 {
 
@@ -9,7 +10,7 @@ Array::Array(const std::vector<int> &_shape): shape(_shape) {
     for (int i = 0; i < shape.size(); i++) {
         size *= shape[i];
     }
-    data.resize(size);
+    vec.resize(size);
 }
 
 Array::Array(const std::vector<int> &_shape, float _value): shape(_shape) {
@@ -17,11 +18,11 @@ Array::Array(const std::vector<int> &_shape, float _value): shape(_shape) {
     for (int i = 0; i < shape.size(); i++) {
         size *= shape[i];
     }
-    data.resize(size, _value);
+    vec.resize(size, _value);
 }
 
-Array::Array(const std::vector<int> &_shape, const std::vector<int> &_data)
-    : shape(_shape), value(_value.begin(), _value.end()) {
+Array::Array(const std::vector<int> &_shape, const std::vector<float> &_vec)
+        : shape(_shape), vec(_vec.begin(), _vec.end()) {
     check_shape();
 }
 
@@ -31,26 +32,26 @@ Array::Array(Array &&other) { *this = std::move(other); }
 
 Array &Array::operator=(const Array &other) {
     if (this != &other) {
-        shape = other->shape;
-        data = other->data;
+        shape = other.shape;
+        vec = other.vec;
     }
     return *this;
 }
 
 Array &Array::operator=(Array &&other) {
     if (this != &other) {
-        shape = std::move(other);
-        data = std::move(data);
+        shape = std::move(other.shape);
+        vec = std::move(other.vec);
     }
     return *this;
 }
 
-void Array::reshape(const vector<int> &_shape) {
+void Array::reshape(const std::vector<int> &_shape) {
     shape = _shape;
     check_shape();
 }
 
-void Array::resize(const vector<int> &_shape) {
+void Array::resize(const std::vector<int> &_shape) {
     shape = _shape;
 
     int size = 1;
@@ -58,8 +59,8 @@ void Array::resize(const vector<int> &_shape) {
         size *= _shape[i];
     }
 
-    if (size != data.size()) {
-        data.resize(size);
+    if (size != vec.size()) {
+        vec.resize(size);
     }
 }
 
@@ -69,11 +70,11 @@ void Array::check_shape() {
         size *= shape[i];
     }
 
-    assert(size == data.size() && "Array: shape does not match with number of elements");
+    CHECK_EQ(size, vec.size(), "Array::check_shape: shape mismatched with number of elements");
 }
 
-void Array::initialize(const Initializer &init) {
-    init.initialize(data);
+void Array::initialize(const Initializer *init) {
+    init->initialize(vec);
 }
 
 } // namespace nnv2

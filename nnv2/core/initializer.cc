@@ -5,41 +5,41 @@
 
 namespace nnv2 {
 
-void LecunNormal::initialize(std::vector<float> &data) {
+void LecunNormal::initialize(std::vector<float> &data) const {
     float s = std::sqrt(1.f / fan_in);
     normal_init(data, s);
 }
 
-void XavierNormal::initialize(std::vector<float> &data) {
+void XavierNormal::initialize(std::vector<float> &data) const {
     float s = std::sqrt(2.f / (fan_in + fan_out));
     normal_init(data, s);
 }
 
-void KaimingNormal::initialize(std::vector<float> &data) {
+void KaimingNormal::initialize(std::vector<float> &data) const {
     float s = std::sqrt(2.f / fan_in);
     normal_init(data, s);
 }
 
-void SimplyNormal::initialize(std::vector<float> &data) {
+void SimplyNormal::initialize(std::vector<float> &data) const {
     normal_init(data, 0.1f);
 }
 
-void LecunUniform::initialize(std::vector<float> &data) {
+void LecunUniform::initialize(std::vector<float> &data) const {
     float r = std::sqrt(1.f / fan_in);
     uniform_init(data, r);
 }
 
-void XavierUniform::initialize(std::vector<float> &data) {
+void XavierUniform::initialize(std::vector<float> &data) const {
     float r = std::sqrt(6.f / (fan_in + fan_out));
     uniform_init(data, r);
 }
 
-void KaomingUniform::initialize(std::vector<float> &data) {
+void KaomingUniform::initialize(std::vector<float> &data) const {
     float r = std::sqrt(6.f / fan_in);
     uniform_init(data, r);
 }
 
-void SimplyUniform::initialize(std::vector<float> &data) {
+void SimplyUniform::initialize(std::vector<float> &data) const {
     uniform_init(data, 0.01f);
 }
 
