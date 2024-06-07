@@ -126,13 +126,9 @@ void func_matmul(Array *output, const Array *input1, const Array *input2) {
         const float *input2_mat = input2->get_vec().data() + i * input2_row * input2_col;
         float *output_mat = output->get_vec().data() + i * output_row * output_col;
 
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
-                    output_row, output_col, input1_col,
-                    1.0f,
-                    input1_mat, input1_col,
-                    input2_mat, input2_col,
-                    0.0f,
-                    output_mat, output_col);
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, output_row, output_col, input1_col,
+                    1.0f, input1_mat, input1_col, input2_mat, input2_col,
+                    0.0f, output_mat, output_col);
     }
 }
 
@@ -162,19 +158,9 @@ void func_transpose(Array *output, const Array *input) {
         const float *input_mat = input->get_vec().data() + i * input_row * input_col;
         float *output_mat = output->get_vec().data() + i * output_row * output_col;
 
-        // divide the matrix into 32x32 grids and apply strip mining technique
-        // https://wgropp.cs.illinois.edu/courses/cs598-s15/lectures/lecture07.pdf
-        int stride = 32;
-
-        for (int j = 0; j < output_col; j += stride) {
-            for (int i = 0; i < output_row; i += stride) {
-                for (int n = j; n < j + stride && n < output_col; n++) {
-                    for (int m = i; m < i + stride && m < output_row; m++) {
-                        output_mat[m * output_col + n] = input_mat[n * input_col + m];
-                    }
-                }
-            }
-        }
+        cblas_somatcopy(CblasRowMajor, CblasTrans, input_row, input_col,
+                        1.0f, input_mat, input_col,
+                        output_mat, output_col);
     }
 }
 

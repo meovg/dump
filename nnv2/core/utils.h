@@ -18,7 +18,7 @@ namespace nnv2 {
 
 #define CHECK_COND(cond, message)                               \
     do {                                                        \
-        if (!(cond)) {                                            \
+        if (!(cond)) {                                          \
             std::cerr << __FILE__ << "(" << __LINE__ << "): "   \
                       << (message) << std::endl;                \
             exit(1);                                            \
