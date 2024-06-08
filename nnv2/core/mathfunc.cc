@@ -164,15 +164,20 @@ void func_transpose(Array *output, const Array *input) {
     }
 }
 
-void func_sum(Array *output, const Array *input, int axis = 0) {
+void func_sum(Array *output, const Array *input, int axis, bool reduce) {
     CHECK_COND(axis >= 0, "func_sum: support for negative axis not implemented");
     CHECK_COND(axis < input->get_shape().size(), "func_sum: axis is out of bound");
 
     // validate output shape
-    std::vector<int> reduced_shape = input->get_shape();
-    reduced_shape.erase(reduced_shape.begin() + axis);
+    std::vector<int> output_shape = input->get_shape();
 
-    CHECK_EQ(output->get_shape(), reduced_shape,
+    if (reduce) {
+        output_shape.erase(output_shape.begin() + axis);
+    } else {
+        output_shape[axis] = 1;
+    }
+
+    CHECK_EQ(output->get_shape(), output_shape,
              "func_sum: output shape does not equal to the shape of reduced form of input");
 
     // calculate stride
@@ -197,15 +202,20 @@ void func_sum(Array *output, const Array *input, int axis = 0) {
     }
 }
 
-void func_mean(Array *output, const Array *input, int axis = 0) {
+void func_mean(Array *output, const Array *input, int axis, bool reduce) {
     CHECK_COND(axis >= 0, "func_mean: support for negative axis not implemented");
     CHECK_COND(axis < input->get_shape().size(), "func_mean: axis is out of bound");
 
     // validate output shape
-    std::vector<int> reduced_shape = input->get_shape();
-    reduced_shape.erase(reduced_shape.begin() + axis);
+    std::vector<int> output_shape = input->get_shape();
 
-    CHECK_EQ(output->get_shape(), reduced_shape,
+    if (reduce) {
+        output_shape.erase(output_shape.begin() + axis);
+    } else {
+        output_shape[axis] = 1;
+    }
+
+    CHECK_EQ(output->get_shape(), output_shape,
              "func_mean: output shape does not equal to the shape of reduced form of input");
 
     // calculate stride

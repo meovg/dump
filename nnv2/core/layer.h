@@ -17,7 +17,7 @@ public:
     Layer &operator=(Layer &&other) = delete;
 
     Layer &connect_layer(Layer &next_layer) {
-        this->next = next_layer;
+        this->next = &next_layer;
         next_layer.prev = this;
         return next_layer;
     }
@@ -31,7 +31,7 @@ public:
     virtual void forward() { throw std::runtime_error("Layer::forward: not implemented"); }
     virtual void backward() { throw std::runtime_error("Layer::forward: not implemented"); }
 
-private:
+protected:
     Layer *prev;
     Layer *next;
 
