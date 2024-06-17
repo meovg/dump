@@ -15,7 +15,7 @@ void func_mul(Array *output, const Array *input, float value);
 
 void func_div(Array *output, const Array *input1, const Array *input2);
 
-void func_matmul(Array *output, const Array *input1, const Array *input2);
+void func_matmul(Array *output, const Array *input1, const Array *input2, int broadcast = 0);
 
 void func_transpose(Array *output, const Array *input);
 

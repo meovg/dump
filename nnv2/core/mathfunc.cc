@@ -85,16 +85,33 @@ void func_div(Array *output, const Array *input1, const Array *input2) {
                    std::divides<float>());
 }
 
-void func_matmul(Array *output, const Array *input1, const Array *input2) {
-    // Idea: Multidimensional arrays are treated as batches of matrices. The size of matrix batch
-    // is the product of all but the last two elements of array's shape, which will then be the
-    // dimensions of the member matrices
+void func_matmul(Array *output, const Array *input1, const Array *input2, int broadcast) {
+    // Peforms matrix multiplication in two main cases based on the value of `broadcast`
+    //   broadcast is 0 (default)
+    //     If both inputs are 2-dimensional it performs single matrix multiplication.
+    //     If both inputs have more than 2 dimensions, it performs matrix multiplication
+    //     in batch. In this case, input and output arrays are seen as collections of matrices.
+    //     The i-th matrix in the output batch is the result of matrix multiplication between
+    //     the i-th matrices in the first and the second input batch.
+    //   broadcast is 1 or 2
+    //     Performs batch matrix multiplication where the input consists of a matrix batch A and
+    //     a single matrix b. In this case, the function performs matrix multiplication between
+    //     each matrix in batch A and the matrix b.
+    //     `broadcast` indicates whether b is the first or second input
 
     // check if the dimensions are at least 2
     CHECK_COND(input1->get_shape().size() > 1, "func_matmul: array dimension must be at least 2");
     CHECK_COND(input2->get_shape().size() > 1, "func_matmul: array dimension must be at least 2");
     CHECK_COND(output->get_shape().size() > 1, "func_matmul: array dimension must be at least 2");
 
+    // additional dimension check for broadcast case
+    if (broadcast == 1) {
+        CHECK_COND(input1->get_shape().size() == 2, "func_matmul: input1 must be 2-dimensional");
+    } else if (broadcast == 2) {
+        CHECK_COND(input2->get_shape().size() == 2, "func_matmul: input2 must be 2-dimensional");
+    }
+
+    // batch size check
     int batch_size =
         std::accumulate(output->get_shape().begin(), output->get_shape().end() - 2, 1,
                         std::multiplies<int>());
@@ -105,37 +122,55 @@ void func_matmul(Array *output, const Array *input1, const Array *input2) {
         std::accumulate(input2->get_shape().begin(), input2->get_shape().end() - 2, 1,
                         std::multiplies<int>());
 
-    CHECK_EQ(batch_size, batch_size_input1, "func_matmul: batch size mismatched");
-    CHECK_EQ(batch_size, batch_size_input2, "func_matmul: batch size mismatched");
+    if (broadcast != 1) {
+        CHECK_EQ(batch_size, batch_size_input1, "func_matmul: batch size mismatched");
+    }
+    if (broadcast != 2) {
+        CHECK_EQ(batch_size, batch_size_input2, "func_matmul: batch size mismatched");
+    }
 
-    int input1_row = *(input1->get_shape().rbegin() + 1);
-    int input1_col = *(input1->get_shape().rbegin());
-    int input2_row = *(input2->get_shape().rbegin() + 1);
-    int input2_col = *(input2->get_shape().rbegin());
-    int output_row = *(output->get_shape().rbegin() + 1);
-    int output_col = *(output->get_shape().rbegin());
+    // matrix dimension check
+    int m = *(input1->get_shape().rbegin() + 1);
+    int k = *(input1->get_shape().rbegin());
+    int n = *(input2->get_shape().rbegin());
 
-    CHECK_EQ(input1_col, input2_row, "func_matmul: shapes of inputs mismatched");
-    CHECK_EQ(output_row, input1_row,
-             "func_matmul: row size of output mismatched with row size of input1");
-    CHECK_EQ(output_col, input2_col,
-             "func_matmul: column size of output mismatched with column size of input2");
+    int input2_h = *(input2->get_shape().rbegin() + 1);
+    int output_h = *(output->get_shape().rbegin() + 1);
+    int output_w = *(output->get_shape().rbegin());
 
+    CHECK_EQ(k, input2_h,
+             "func_matmul: number of cols in input1 must be equal to number of rows in input2");
+    CHECK_EQ(m, output_h,
+             "func_matmul: number of rows in output must be equal to number of rows in input1");
+    CHECK_EQ(n, output_w,
+             "func_matmul: number of cols in output must be equal to number of cols in input2");
+
+    // matrix multiplication process
     for (int i = 0; i < batch_size; i++) {
-        const float *input1_mat = input1->get_vec().data() + i * input1_row * input1_col;
-        const float *input2_mat = input2->get_vec().data() + i * input2_row * input2_col;
-        float *output_mat = output->get_vec().data() + i * output_row * output_col;
+        const float *input1_mat = input1->get_vec().data();
+        if (broadcast != 1) {
+            input1_mat += i * m * k;
+        }
 
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, output_row, output_col, input1_col,
-                    1.0f, input1_mat, input1_col, input2_mat, input2_col,
-                    0.0f, output_mat, output_col);
+        const float *input2_mat = input2->get_vec().data();
+        if (broadcast != 2) {
+            input2_mat += i * k * n;
+        }
+
+        float *output_mat = output->get_vec().data() + i * output_h * output_w;
+
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k,
+                    1.0f, input1_mat, k, input2_mat, n,
+                    0.0f, output_mat, n);
     }
 }
 
 void func_transpose(Array *output, const Array *input) {
     // check if the dimensions are at least 2
-    CHECK_COND(input->get_shape().size() > 1, "func_transpose: array dimension must be at least 2");
-    CHECK_COND(output->get_shape().size() > 1, "func_transpose: array dimension must be at least 2");
+    CHECK_COND(input->get_shape().size() > 1,
+               "func_transpose: array dimension must be at least 2");
+    CHECK_COND(output->get_shape().size() > 1,
+               "func_transpose: array dimension must be at least 2");
 
     int batch_size =
         std::accumulate(output->get_shape().begin(), output->get_shape().end() - 2, 1,
@@ -146,21 +181,21 @@ void func_transpose(Array *output, const Array *input) {
 
     CHECK_EQ(batch_size, batch_size_input, "func_transpose: batch size mismatched");
 
-    int input_row = *(input->get_shape().rbegin() + 1);
-    int input_col = *(input->get_shape().rbegin());
-    int output_row = *(output->get_shape().rbegin() + 1);
-    int output_col = *(output->get_shape().rbegin());
+    int input_h = *(input->get_shape().rbegin() + 1);
+    int input_w = *(input->get_shape().rbegin());
+    int output_h = *(output->get_shape().rbegin() + 1);
+    int output_w = *(output->get_shape().rbegin());
 
-    CHECK_EQ(input_row, output_col, "func_transpose: shapes of inputs mismatched");
-    CHECK_EQ(input_col, output_row, "func_transpose: shapes of inputs mismatched");
+    CHECK_EQ(input_h, output_w, "func_transpose: shapes of inputs mismatched");
+    CHECK_EQ(input_w, output_h, "func_transpose: shapes of inputs mismatched");
 
     for (int i = 0; i < batch_size; i++) {
-        const float *input_mat = input->get_vec().data() + i * input_row * input_col;
-        float *output_mat = output->get_vec().data() + i * output_row * output_col;
+        const float *input_mat = input->get_vec().data() + i * input_h * input_w;
+        float *output_mat = output->get_vec().data() + i * output_h * output_w;
 
-        cblas_somatcopy(CblasRowMajor, CblasTrans, input_row, input_col,
-                        1.0f, input_mat, input_col,
-                        output_mat, output_col);
+        cblas_somatcopy(CblasRowMajor, CblasTrans, input_h, input_w,
+                        1.0f, input_mat, input_w,
+                        output_mat, output_w);
     }
 }
 

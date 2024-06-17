@@ -6,27 +6,27 @@
 
 namespace nnv2 {
 
-Linear::Linear(int in_size, int out_size, const Initializer *init)
-        : in_size(in_size), out_size(out_size) {
-    weights.reset(new Array({ in_size, out_size }));
-    weights->initialize(init);
-    weights_grad.reset(new Array({ in_size, out_size }));
+Linear::Linear(int in_feats, int out_feats, const Initializer *init)
+        : in_feats(in_feats), out_feats(out_feats) {
+    weight.reset(new Array({ in_feats, out_feats }));
+    weight->initialize(init);
+    weight_grad.reset(new Array({ in_feats, out_feats }));
 
-    bias.reset(new Array({ 1, out_size }, 0.f));
-    bias_grad.reset(new Array({ 1, out_size }));
+    bias.reset(new Array({ 1, out_feats }, 0.f));
+    bias_grad.reset(new Array({ 1, out_feats }));
 }
 
-void linear_transform(Array *output, const Array *input, const Array *weights) {
-    func_matmul(output, input, weights);
+void linear_transform(Array *output, const Array *input, const Array *weight) {
+    func_matmul(output, input, weight);
 }
 
-void add_bias_to_output(Array *output, const Array *bias) {
+void linear_add_bias_to_output(Array *output, const Array *bias) {
     int batch_size = output->get_shape()[0];
-    int out_size = output->get_shape()[1];
+    int out_feats = output->get_shape()[1];
 
     for (int i = 0; i < batch_size; i++) {
-        for (int j = 0; j < out_size; j++) {
-            output->get_vec()[i * out_size + j] += bias->get_vec()[j];
+        for (int j = 0; j < out_feats; j++) {
+            output->get_vec()[i * out_feats + j] += bias->get_vec()[j];
         }
     }
 }
@@ -36,36 +36,36 @@ void Linear::forward() {
     int batch_size = input->get_shape()[0];
 
     // initialize storage for output
-    std::vector<int> output_shape = { batch_size, out_size };
+    std::vector<int> output_shape = { batch_size, out_feats };
     INIT_ARRAY(output, output_shape);
 
-    // calculate output neurons from input neurons and weights (bias is not added yet)
-    linear_transform(output.get(), input, weights.get());
+    // calculate output neurons from input neurons and weight (bias is not added yet)
+    linear_transform(output.get(), input, weight.get());
 
     // adding bias vector to output neuron
-    add_bias_to_output(output.get(), bias.get());
+    linear_add_bias_to_output(output.get(), bias.get());
 }
 
-void propagate_linear_gradient(Array *input_grad, Array *weights_grad, const Array *input,
-                               const Array *weights, const Array *output_grad) {
+void linear_propagate_gradient(Array *input_grad, Array *weight_grad, const Array *input,
+                               const Array *weight, const Array *output_grad) {
     // calculate transpose of input: X^T
     std::vector<int> input_t_shape = { input->get_shape()[1], input->get_shape()[0] };
     Array input_t(input_t_shape);
     func_transpose(&input_t, input);
 
     // calculate transpose of output: W^T
-    std::vector<int> weights_t_shape = { weights->get_shape()[1], weights->get_shape()[0] };
-    Array weights_t(weights_t_shape);
-    func_transpose(&weights_t, weights);
+    std::vector<int> weight_t_shape = { weight->get_shape()[1], weight->get_shape()[0] };
+    Array weight_t(weight_t_shape);
+    func_transpose(&weight_t, weight);
 
     // calculate gradient with respect to weight: dW = X^T * dA
-    func_matmul(weights_grad, &input_t, output_grad);
+    func_matmul(weight_grad, &input_t, output_grad);
 
     // calculate gradient with respect to input: dX = dA * W^T
-    func_matmul(input_grad, output_grad, &weights_t);
+    func_matmul(input_grad, output_grad, &weight_t);
 }
 
-void propagate_bias_gradient(Array *bias_grad, const Array *output_grad) {
+void linear_propagate_bias_gradient(Array *bias_grad, const Array *output_grad) {
     // calculate gradient with respect to bias: db = sum(dA, axis=0)
     func_sum(bias_grad, output_grad, 0, false);
 }
@@ -76,8 +76,8 @@ void Linear::backward() {
 
     INIT_ARRAY(grad, input->get_shape());
 
-    propagate_bias_gradient(bias_grad.get(), output_grad);
-    propagate_linear_gradient(grad.get(), weights_grad.get(), input, weights.get(), output_grad);
+    linear_propagate_bias_gradient(bias_grad.get(), output_grad);
+    linear_propagate_gradient(grad.get(), weight_grad.get(), input, weight.get(), output_grad);
 }
 
 } // namespace nnv2

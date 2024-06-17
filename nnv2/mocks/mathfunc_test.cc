@@ -60,12 +60,21 @@ void test_func_matmul(void) {
     assert(c.get_vec() == std::vector<float>({ 5, 14, 23, 14, 50, 86 }));
 
     // batch matrix
-    Array u({ 2, 1, 2, 3 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 });
-    Array v({ 1, 2, 3, 2 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 });
-    Array t({ 2, 1, 2, 2 });
+    Array u({ 2, 2, 3 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 });
+    Array v({ 2, 3, 2 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 });
+    Array t({ 2, 2, 2 });
 
     func_matmul(&t, &u, &v);
     assert(t.get_vec() == std::vector<float>({ 10, 13, 28, 40, 172, 193, 244, 274 }));
+
+    // broadcast
+    Array m({ 3, 2 }, { 0, 1, 2, 3, 4, 5 });
+    func_matmul(&t, &u, &m, 2);
+    assert(t.get_vec() == std::vector<float>({ 10, 13, 28, 40, 46, 67, 64, 94 }));
+
+    Array n({ 2, 3 }, { 0, 1, 2, 3, 4, 5 });
+    func_matmul(&t, &n, &v, 1);
+    assert(t.get_vec() == std::vector<float>({ 10, 13, 28, 40, 28, 31, 100, 112 }));
 
     std::cout << "test_func_matmul: Passed" << std::endl;
 }
