@@ -164,6 +164,111 @@ void conv_add_bias_to_output(Array *output, const Array *bias) {
     }
 }
 
+void conv_propagate_gradient(Array *input_grad, Array *kernel_grad, Array *output_grad,
+                             const Array *input, Array *kernel, const Array *cols,
+                             int pad_h, int pad_w, int stride_h, int stride_w) {
+    // This function calculates the input gradient, kernel gradient from the output gradient
+    // Input:
+    //   dL/dX: shape (n, i_f, i_h, i_w)
+    //   dL/dK: shape (o_f, i_f, k_h, k_w)
+    //   dL/dY: shape (n, o_f, o_h, o_w)
+    //   X:     shape (n, i_f, i_h, i_w)
+    //   K:     shape (o_f, i_f, k_h, k_w)
+    //   Cols:  shape (n, i_f * k_h * k_w, o_h * o_w)
+    //
+    // As: Y = K * Cols, Cols = im2col(X)
+    // ->dL/dK = dL/dY * Cols^T
+    //   dL/dCols = K^T * dL/dY   
+    //   dL/dX = col2im(dL/dCols)
+
+    CHECK_EQ(input_grad->get_shape().size(), 4,
+             "conv_propagate_gradient: input gradient shape error");
+    CHECK_EQ(kernel_grad->get_shape().size(), 4,
+             "conv_propagate_gradient: input shape error");
+    CHECK_EQ(cols->get_shape().size(), 3, "conv_propagate_gradient: cols shape error");
+    CHECK_EQ(output_grad->get_shape().size(), 4,
+             "conv_propagate_gradient: output gradient shape error");
+
+    CHECK_EQ(input->get_shape(), input_grad->get_shape(),
+             "conv_propagate_gradient: shape mismatch between input and its gradient");
+    CHECK_EQ(kernel->get_shape(), kernel_grad->get_shape(),
+             "conv_propagate_gradient: shape mismatch between kernel and its gradient");
+
+    int batch_size = input->get_shape()[0];
+    int in_feats = input->get_shape()[1];
+    int in_h = input->get_shape()[2];
+    int in_w = input->get_shape()[3];
+
+    CHECK_EQ(output_grad->get_shape()[0], batch_size, "conv_propagate_gradient: batch size error");
+
+    int out_feats = output_grad->get_shape()[1];
+    int out_h = output_grad->get_shape()[2];
+    int out_w = output_grad->get_shape()[3];
+
+    CHECK_EQ(kernel->get_shape()[0], out_feats, "conv_propagate_gradient: feature size error");
+    CHECK_EQ(kernel->get_shape()[1], in_feats, "conv_propagate_gradient: feature size error");
+
+    int kernel_h = kernel->get_shape()[2];
+    int kernel_w = kernel->get_shape()[3];
+
+    // Calculate Cols^T: shape (n, o_h * o_w, i_f * k_h * k_w)
+    Array cols_t({ batch_size, out_h * out_w, in_feats * kernel_h * kernel_w });
+    func_transpose(&cols_t, cols);
+
+    // Calculate dL/dK = dL/dY * Cols^T
+    // Note that the shape of dL/dY is (n, o_f, o_h, o_w) so be sure to reshape it
+    // to (n, o_f, o_h * o_w)
+    output_grad->reshape({ batch_size, out_feats, out_h * out_w });
+
+    Array kernel_grad_unfolded({ batch_size, out_feats, in_feats * kernel_h * kernel_w });
+    func_matmul(&kernel_grad_unfolded, output_grad, &cols_t);
+
+    // The resulting matrix has shape (n, o_f, i_f * k_h * k_w)
+    // You need to fold it so that each element of dY/dK is the sum of gradients along the batch
+    kernel_grad_unfolded.reshape({ batch_size, out_feats, in_feats, kernel_h, kernel_w });
+    func_sum(kernel_grad, &kernel_grad_unfolded, 0);
+
+    // Calculate dL/dCols = K^T * dL/dY
+    // K (o_f, i_f, k_h, k_w) => K (o_f, i_f * k_h * k_w) => K^T (i_f * k_h * k_w, o_f)
+    kernel->reshape({ out_feats, in_feats * kernel_h * kernel_w });
+    Array kernel_t({ in_feats * kernel_h * kernel_w, out_feats });
+    func_transpose(&kernel_t, kernel);
+
+    // dL/dY (n, o_f, o_h, o_w) => dL/dY (n, o_f, o_h * o_w)
+    // [skipped since dL/dY is already resized]
+    // dL/dCols = K^T * dL/dY, shape (n, i_f * k_h * k_w, o_h * o_w) 
+    Array cols_grad({ batch_size, in_feats * kernel_h * kernel_w, out_h * out_w });
+    func_matmul(&cols_grad, &kernel_t, output_grad, 1);
+
+    // Calculate dL/dX = col2im(dL/dCols)
+    col2im(&cols_grad, input_grad, pad_h, pad_w, kernel_h, kernel_w, stride_h, stride_w);
+
+    // restore shape
+    output_grad->reshape({ batch_size, out_feats, out_h, out_w });
+    kernel->reshape({ out_feats, in_feats, kernel_h, kernel_w });
+}
+
+void conv_propagate_bias_gradient(Array *bias_grad, const Array *output_grad) {
+    // Input:
+    //   dL/db: shape (1, o_f)
+    //   dL/dY: shape (n, o_f, o_h, o_w)
+
+    int batch_size = output_grad->get_shape()[0];
+    int out_feats = output_grad->get_shape()[1];
+    int out_h = output_grad->get_shape()[2];
+
+    CHECK_EQ(bias_grad->get_shape()[1], out_feats,
+             "linear_propagate_bias_gradient: bias_grad size error");
+
+    Array fold3({ batch_size, out_feats, out_h });
+    Array fold2({ batch_size, out_feats });
+
+    func_sum(&fold3, output_grad, 3);
+    func_sum(&fold2, &fold3, 2);
+
+    func_sum(bias_grad, &fold2, 0, false);
+}
+
 Conv2D::Conv2D(int in_feats, int out_feats, int in_h, int in_w, int pad_h, int pad_w,
                int kernel_h, int kernel_w, int stride_h, int stride_w, const Initializer *init)
         : in_feats(in_feats), out_feats(out_feats), in_h(in_h), in_w(in_w),
@@ -200,7 +305,15 @@ void Conv2D::forward() {
 }
 
 void Conv2D::backward() {
-    // TODO
+    const Array *input = prev->get_output();
+    const Array *output_grad = next->get_grad();
+
+    INIT_ARRAY(grad, input->get_shape());
+
+    conv_propagate_bias_gradient(bias_grad.get(), output_grad);
+
+    conv_propagate_gradient(grad.get(), kernel_grad.get(), output_grad, input, kernel.get(),
+                            imcols.get(), pad_h, pad_w, stride_h, stride_w);
 }
 
 
