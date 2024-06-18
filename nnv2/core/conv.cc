@@ -96,24 +96,24 @@ void im2col(const Array *im, Array *cols, int pad_h, int pad_w, int kernel_h, in
 // This function performs convolution on input and kernel to produce output
 void conv_forward(Array *output, const Array *input, Array *cols, Array *kernel,
                   int pad_h, int pad_w, int stride_h, int stride_w) {
-    CHECK_EQ(output->get_shape().size(), 4, "conv_transform: output shape error");
-    CHECK_EQ(input->get_shape().size(), 4, "conv_transform: input shape error");
-    CHECK_EQ(cols->get_shape().size(), 3, "conv_transform: cols shape error");
-    CHECK_EQ(kernel->get_shape().size(), 4, "conv_transform: kernel shape error");
+    CHECK_EQ(output->get_shape().size(), 4, "conv_forward: output shape error");
+    CHECK_EQ(input->get_shape().size(), 4, "conv_forward: input shape error");
+    CHECK_EQ(cols->get_shape().size(), 3, "conv_forward: cols shape error");
+    CHECK_EQ(kernel->get_shape().size(), 4, "conv_forward: kernel shape error");
 
     int batch_size = input->get_shape()[0];
     int in_feats = input->get_shape()[1];
     int in_h = input->get_shape()[2];
     int in_w = input->get_shape()[3];
 
-    CHECK_EQ(output->get_shape()[0], batch_size, "conv_transform: batch size error");
+    CHECK_EQ(output->get_shape()[0], batch_size, "conv_forward: batch size error");
 
     int out_feats = output->get_shape()[1];
     int out_h = output->get_shape()[2];
     int out_w = output->get_shape()[3];
 
-    CHECK_EQ(kernel->get_shape()[0], out_feats, "conv_transform: feature size error");
-    CHECK_EQ(kernel->get_shape()[1], in_feats, "conv_transform: feature size error");
+    CHECK_EQ(kernel->get_shape()[0], out_feats, "conv_forward: feature size error");
+    CHECK_EQ(kernel->get_shape()[1], in_feats, "conv_forward: feature size error");
 
     int kernel_h = kernel->get_shape()[2];
     int kernel_w = kernel->get_shape()[3];
@@ -159,32 +159,29 @@ void conv_forward_bias(Array *output, const Array *bias) {
 void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad, const Array *input,
                    Array *kernel, const Array *cols, int pad_h, int pad_w, int stride_h,
                    int stride_w) {
-    CHECK_EQ(input_grad->get_shape().size(), 4,
-             "conv_propagate_gradient: input gradient shape error");
-    CHECK_EQ(kernel_grad->get_shape().size(), 4,
-             "conv_propagate_gradient: input shape error");
-    CHECK_EQ(cols->get_shape().size(), 3, "conv_propagate_gradient: cols shape error");
-    CHECK_EQ(output_grad->get_shape().size(), 4,
-             "conv_propagate_gradient: output gradient shape error");
+    CHECK_EQ(input_grad->get_shape().size(), 4, "conv_backward: input gradient shape error");
+    CHECK_EQ(kernel_grad->get_shape().size(), 4, "conv_backward: input shape error");
+    CHECK_EQ(cols->get_shape().size(), 3, "conv_backward: cols shape error");
+    CHECK_EQ(output_grad->get_shape().size(), 4, "conv_backward: output gradient shape error");
 
     CHECK_EQ(input->get_shape(), input_grad->get_shape(),
-             "conv_propagate_gradient: shape mismatch between input and its gradient");
+             "conv_backward: shape mismatch between input and its gradient");
     CHECK_EQ(kernel->get_shape(), kernel_grad->get_shape(),
-             "conv_propagate_gradient: shape mismatch between kernel and its gradient");
+             "conv_backward: shape mismatch between kernel and its gradient");
 
     int batch_size = input->get_shape()[0];
     int in_feats = input->get_shape()[1];
     int in_h = input->get_shape()[2];
     int in_w = input->get_shape()[3];
 
-    CHECK_EQ(output_grad->get_shape()[0], batch_size, "conv_propagate_gradient: batch size error");
+    CHECK_EQ(output_grad->get_shape()[0], batch_size, "conv_backward: batch size error");
 
     int out_feats = output_grad->get_shape()[1];
     int out_h = output_grad->get_shape()[2];
     int out_w = output_grad->get_shape()[3];
 
-    CHECK_EQ(kernel->get_shape()[0], out_feats, "conv_propagate_gradient: feature size error");
-    CHECK_EQ(kernel->get_shape()[1], in_feats, "conv_propagate_gradient: feature size error");
+    CHECK_EQ(kernel->get_shape()[0], out_feats, "conv_backward: feature size error");
+    CHECK_EQ(kernel->get_shape()[1], in_feats, "conv_backward: feature size error");
 
     int kernel_h = kernel->get_shape()[2];
     int kernel_w = kernel->get_shape()[3];
@@ -246,8 +243,7 @@ void conv_backward_bias(Array *bias_grad, const Array *output_grad) {
     int out_feats = output_grad->get_shape()[1];
     int out_h = output_grad->get_shape()[2];
 
-    CHECK_EQ(bias_grad->get_shape()[1], out_feats,
-             "linear_propagate_bias_gradient: bias_grad size error");
+    CHECK_EQ(bias_grad->get_shape()[1], out_feats, "conv_backward_bias: bias_grad size error");
 
     Array fold3({ batch_size, out_feats, out_h });
     Array fold2({ batch_size, out_feats });
