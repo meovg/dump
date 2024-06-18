@@ -43,15 +43,15 @@ void im2col(const Array *im, Array *imcols, int pad_h, int pad_w, int kernel_h, 
 void col2im(const Array *imcols, Array *im, int pad_h, int pad_w, int kernel_h, int kernel_w,
             int stride_h, int stride_w);
 
-void conv_transform(Array *output, const Array *input, Array *cols, Array *kernel,
-                    int pad_h, int pad_w, int stride_h, int stride_w);
+void conv_forward(Array *output, const Array *input, Array *cols, Array *kernel,
+                  int pad_h, int pad_w, int stride_h, int stride_w);
 
-void conv_add_bias_to_output(Array *output, const Array *bias);
+void conv_forward_bias(Array *output, const Array *bias);
 
-void conv_propagate_gradient(Array *input_grad, Array *kernel_grad, Array *output_grad,
-                             const Array *input, Array *kernel, const Array *cols,
-                             int pad_h, int pad_w, int stride_h, int stride_w);
+void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad, const Array *input,
+                   Array *kernel, const Array *cols, int pad_h, int pad_w, int stride_h,
+                   int stride_w);
 
-void conv_propagate_bias_gradient(Array *bias_grad, const Array *output_grad);
+void conv_backward_bias(Array *bias_grad, const Array *output_grad);
 
 } // namespace nnv2

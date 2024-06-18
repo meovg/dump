@@ -6,9 +6,7 @@
 
 namespace nnv2 {
 
-static void col2im_add_pixel(Array *im, int batch_idx, int feat_idx, int r, int c,
-                             int pad_h, int pad_w, float value) {
-    int feats = im->get_shape()[1];
+static void im_add_pixel(Array *im, int feat_idx, int r, int c, int pad_h, int pad_w, float value) {
     int h = im->get_shape()[2];
     int w = im->get_shape()[3];
 
@@ -19,11 +17,11 @@ static void col2im_add_pixel(Array *im, int batch_idx, int feat_idx, int r, int 
         return;
     }
 
-    int im_idx = ((batch_idx * feats + feat_idx) * h + r) * w + c;
+    int im_idx = (feat_idx * h + r) * w + c;
     im->get_vec()[im_idx] += value;
 }
 
-void col2im(const Array *imcols, Array *im, int pad_h, int pad_w, int kernel_h, int kernel_w,
+void col2im(const Array *cols, Array *im, int pad_h, int pad_w, int kernel_h, int kernel_w,
             int stride_h, int stride_w) {
     int batch_size = im->get_shape()[0];
     int im_feats = im->get_shape()[1];
@@ -33,30 +31,26 @@ void col2im(const Array *imcols, Array *im, int pad_h, int pad_w, int kernel_h, 
     int out_h = (im_h + 2 * pad_h - kernel_h) / stride_h + 1;
     int out_w = (im_w + 2 * pad_w - kernel_w) / stride_w + 1;
 
-    int col_size = batch_size * im_feats * kernel_h * kernel_w;
-    for (int i = 0; i < col_size; i++) {
-        int kernel_offset_r = (i / kernel_w) % kernel_h;
-        int kernel_offset_c = i % kernel_w;
-
-        int feat_idx = (i / kernel_w / kernel_h) % im_feats;
-        int batch_idx = (i / kernel_w / kernel_h) / im_feats;
+    int cols_size = batch_size * im_feats * kernel_h * kernel_w;
+    for (int i = 0; i < cols_size; i++) {
+        int kernel_r = (i / kernel_w) % kernel_h;
+        int kernel_c = i % kernel_w;
+        int feat_idx = i / kernel_w / kernel_h;
 
         for (int r = 0; r < out_h; r++) {
             for (int c = 0; c < out_w; c++) {
-                int im_r = kernel_offset_r + stride_h * r;
-                int im_c = kernel_offset_c + stride_w * c;
+                int im_r = kernel_r + stride_h * r;
+                int im_c = kernel_c + stride_w * c;
 
-                int col_idx = (i * out_h + r) * out_w + c;
-                float value = imcols->get_vec()[col_idx];
-                col2im_add_pixel(im, batch_idx, feat_idx, im_r, im_c, pad_h, pad_w, value);
+                int cols_idx = (i * out_h + r) * out_w + c;
+                float value = cols->get_vec()[cols_idx];
+                im_add_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w, value);
             }
         }
     }
 }
 
-static float im2col_get_pixel(const Array *im, int batch_idx, int feat_idx, int r, int c,
-                              int pad_h, int pad_w) {
-    int feats = im->get_shape()[1];
+static float im_get_pixel(const Array *im, int feat_idx, int r, int c, int pad_h, int pad_w) {
     int h = im->get_shape()[2];
     int w = im->get_shape()[3];
 
@@ -67,11 +61,11 @@ static float im2col_get_pixel(const Array *im, int batch_idx, int feat_idx, int 
         return 0;
     }
 
-    int im_idx = ((batch_idx * feats + feat_idx) * h + r) * w + c;
+    int im_idx = (feat_idx * h + r) * w + c;
     return im->get_vec()[im_idx];
 }
 
-void im2col(const Array *im, Array *imcols, int pad_h, int pad_w, int kernel_h, int kernel_w,
+void im2col(const Array *im, Array *cols, int pad_h, int pad_w, int kernel_h, int kernel_w,
             int stride_h, int stride_w) {
     int batch_size = im->get_shape()[0];
     int im_feats = im->get_shape()[1];
@@ -81,34 +75,27 @@ void im2col(const Array *im, Array *imcols, int pad_h, int pad_w, int kernel_h, 
     int out_h = (im_h + 2 * pad_h - kernel_h) / stride_h + 1;
     int out_w = (im_w + 2 * pad_w - kernel_w) / stride_w + 1;
 
-    int col_size = batch_size * im_feats * kernel_h * kernel_w;
-    for (int i = 0; i < col_size; i++) {
-        int kernel_offset_r = (i / kernel_w) % kernel_h;
-        int kernel_offset_c = i % kernel_w;
-
-        int feat_idx = (i / kernel_w / kernel_h) % im_feats;
-        int batch_idx = (i / kernel_w / kernel_h) / im_feats;
+    int cols_size = batch_size * im_feats * kernel_h * kernel_w;
+    for (int i = 0; i < cols_size; i++) {
+        int kernel_r = (i / kernel_w) % kernel_h;
+        int kernel_c = i % kernel_w;
+        int feat_idx = i / kernel_w / kernel_h;
 
         for (int r = 0; r < out_h; r++) {
             for (int c = 0; c < out_w; c++) {
-                int im_r = kernel_offset_r + stride_h * r;
-                int im_c = kernel_offset_c + stride_w * c;
+                int im_r = kernel_r + stride_h * r;
+                int im_c = kernel_c + stride_w * c;
 
                 int col_idx = (i * out_h + r) * out_w + c;
-                imcols->get_vec()[col_idx] =
-                        im2col_get_pixel(im, batch_idx, feat_idx, im_r, im_c, pad_h, pad_w);
+                cols->get_vec()[col_idx] = im_get_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w);
             }
         }
     }
 }
 
-void conv_transform(Array *output, const Array *input, Array *cols, Array *kernel,
-                    int pad_h, int pad_w, int stride_h, int stride_w) {
-    // output: shape (n, o_f, o_h, o_w)
-    // input: shape (n, i_f, i_h, i_w)
-    // cols: shape (n, i_f * k_h * k_w, o_h * o_w)
-    // kernel: shape (o_f, i_f, k_h, k_w)
-
+// This function performs convolution on input and kernel to produce output
+void conv_forward(Array *output, const Array *input, Array *cols, Array *kernel,
+                  int pad_h, int pad_w, int stride_h, int stride_w) {
     CHECK_EQ(output->get_shape().size(), 4, "conv_transform: output shape error");
     CHECK_EQ(input->get_shape().size(), 4, "conv_transform: input shape error");
     CHECK_EQ(cols->get_shape().size(), 3, "conv_transform: cols shape error");
@@ -131,20 +118,22 @@ void conv_transform(Array *output, const Array *input, Array *cols, Array *kerne
     int kernel_h = kernel->get_shape()[2];
     int kernel_w = kernel->get_shape()[3];
 
-    // perform im2col to flatten images to columns of pixels that corresponds to their kernel
+    // Cols = im2col(X)
+    // X: shape (n, i_f, i_h, i_w)
     im2col(input, cols, pad_h, pad_w, kernel_h, kernel_w, stride_w, stride_h);
 
-    // perform matrix multiplication between kernel and image columns
-    // since the kernel is of shape (o_f, i_f, k_h, k_w) while the image columns matrix is
-    // of shape (n, i_f * k_h * k_w, o_h * o_w), the kernel is temporarily reshaped to
-    // (o_f, i_f * k_h * k_w);
+    // Y = K * Cols
+    // Y: shape (n,   o_f, o_h, o_w)
+    // K: shape (o_f, i_f, k_h, k_w)
+    // Cols: shape (n, i_f * k_h * k_w, o_h * o_w)
+
+    // reshape K to (o_f, i_f * k_h * k_w)
     kernel->reshape({ out_feats, in_feats * kernel_h * kernel_w });
 
-    // after multiplication, the resulting matrix is of shape (n, o_f, o_h * o_w) and since
-    // the shape of output is (n, o_f, o_h, o_w), it is temporarily reshaped.
+    // reshape Y to (n, o_f, o_h * o_w)
     output->reshape({ batch_size, out_feats, out_h * out_w });
 
-    // output = kernel * input imcols
+    // calculate Y = K * Cols
     func_matmul(output, kernel, cols, 1);
 
     // recover shape
@@ -152,35 +141,24 @@ void conv_transform(Array *output, const Array *input, Array *cols, Array *kerne
     output->reshape({ batch_size, out_feats, out_h, out_w });
 }
 
-void conv_add_bias_to_output(Array *output, const Array *bias) {
+// Adds bias based on the output feature index
+void conv_forward_bias(Array *output, const Array *bias) {
     int out_feats = output->get_shape()[1];
     int out_h = output->get_shape()[2];
     int out_w = output->get_shape()[3];
 
     std::vector<float> &output_ref = output->get_vec();
+
     for (int i = 0; i < output_ref.size(); i++) {
         int feat_idx = (i / (out_h * out_w)) % out_feats;
         output_ref[i] += bias->get_vec()[feat_idx];
     }
 }
 
-void conv_propagate_gradient(Array *input_grad, Array *kernel_grad, Array *output_grad,
-                             const Array *input, Array *kernel, const Array *cols,
-                             int pad_h, int pad_w, int stride_h, int stride_w) {
-    // This function calculates the input gradient, kernel gradient from the output gradient
-    // Input:
-    //   dL/dX: shape (n, i_f, i_h, i_w)
-    //   dL/dK: shape (o_f, i_f, k_h, k_w)
-    //   dL/dY: shape (n, o_f, o_h, o_w)
-    //   X:     shape (n, i_f, i_h, i_w)
-    //   K:     shape (o_f, i_f, k_h, k_w)
-    //   Cols:  shape (n, i_f * k_h * k_w, o_h * o_w)
-    //
-    // As: Y = K * Cols, Cols = im2col(X)
-    // ->dL/dK = dL/dY * Cols^T
-    //   dL/dCols = K^T * dL/dY   
-    //   dL/dX = col2im(dL/dCols)
-
+// This function calculates the input gradient, kernel gradient from the output gradient
+void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad, const Array *input,
+                   Array *kernel, const Array *cols, int pad_h, int pad_w, int stride_h,
+                   int stride_w) {
     CHECK_EQ(input_grad->get_shape().size(), 4,
              "conv_propagate_gradient: input gradient shape error");
     CHECK_EQ(kernel_grad->get_shape().size(), 4,
@@ -211,36 +189,47 @@ void conv_propagate_gradient(Array *input_grad, Array *kernel_grad, Array *outpu
     int kernel_h = kernel->get_shape()[2];
     int kernel_w = kernel->get_shape()[3];
 
-    // Calculate Cols^T: shape (n, o_h * o_w, i_f * k_h * k_w)
+    // As: Y = K * Cols, Cols = im2col(X)
+    // => dL/dK = dL/dY * Cols^T
+    //    dL/dCols = K^T * dL/dY 
+    //    dL/dX = col2im(dL/dCols)
+
+    // dL/dK = dL/dY * Cols^T
+    // dL/dK:   shape (o_f, i_f, k_h, k_w)
+    // dL/dY:   shape (n, o_f, o_h, o_w)
+    // Cols^T:  shape (n, o_h * o_w, i_f * k_h * k_w)
+
+    // calculate Cols^T
     Array cols_t({ batch_size, out_h * out_w, in_feats * kernel_h * kernel_w });
     func_transpose(&cols_t, cols);
 
-    // Calculate dL/dK = dL/dY * Cols^T
-    // Note that the shape of dL/dY is (n, o_f, o_h, o_w) so be sure to reshape it
-    // to (n, o_f, o_h * o_w)
+    // reshape dL/dY to (n, o_f, o_h * o_w)
     output_grad->reshape({ batch_size, out_feats, out_h * out_w });
 
+    // calculate dL/dY * Cols^T
     Array kernel_grad_unfolded({ batch_size, out_feats, in_feats * kernel_h * kernel_w });
     func_matmul(&kernel_grad_unfolded, output_grad, &cols_t);
 
-    // The resulting matrix has shape (n, o_f, i_f * k_h * k_w)
-    // You need to fold it so that each element of dY/dK is the sum of gradients along the batch
+    // dL/dY: shape (n, o_f, i_f * k_h * k_w) => (n, o_f, i_f, k_h, k_w)
+    // dL/dK is the sum of gradient along the batch
     kernel_grad_unfolded.reshape({ batch_size, out_feats, in_feats, kernel_h, kernel_w });
     func_sum(kernel_grad, &kernel_grad_unfolded, 0);
 
-    // Calculate dL/dCols = K^T * dL/dY
-    // K (o_f, i_f, k_h, k_w) => K (o_f, i_f * k_h * k_w) => K^T (i_f * k_h * k_w, o_f)
+    // dL/dCols = K^T * dL/dY
+    // dL/dCols: shape (n, i_f * k_h * k_w, o_h * o_w)
+    // K: shape (o_f, i_f, k_h, k_w)
+    // dL/dY: shape (n, o_f, o_h, o_w) => (n, o_f, o_h * o_w)
+    
+    // reshape K to (o_f, i_f * k_h * k_w) and calculate K^T
     kernel->reshape({ out_feats, in_feats * kernel_h * kernel_w });
     Array kernel_t({ in_feats * kernel_h * kernel_w, out_feats });
     func_transpose(&kernel_t, kernel);
 
-    // dL/dY (n, o_f, o_h, o_w) => dL/dY (n, o_f, o_h * o_w)
-    // [skipped since dL/dY is already resized]
-    // dL/dCols = K^T * dL/dY, shape (n, i_f * k_h * k_w, o_h * o_w) 
+    // calculate dL/dCols = K^T * dL/dY
     Array cols_grad({ batch_size, in_feats * kernel_h * kernel_w, out_h * out_w });
     func_matmul(&cols_grad, &kernel_t, output_grad, 1);
 
-    // Calculate dL/dX = col2im(dL/dCols)
+    // calculate dL/dX = col2im(dL/dCols)
     col2im(&cols_grad, input_grad, pad_h, pad_w, kernel_h, kernel_w, stride_h, stride_w);
 
     // restore shape
@@ -248,7 +237,7 @@ void conv_propagate_gradient(Array *input_grad, Array *kernel_grad, Array *outpu
     kernel->reshape({ out_feats, in_feats, kernel_h, kernel_w });
 }
 
-void conv_propagate_bias_gradient(Array *bias_grad, const Array *output_grad) {
+void conv_backward_bias(Array *bias_grad, const Array *output_grad) {
     // Input:
     //   dL/db: shape (1, o_f)
     //   dL/dY: shape (n, o_f, o_h, o_w)
@@ -298,22 +287,19 @@ void Conv2D::forward() {
     INIT_ARRAY(output, output_shape);
     INIT_ARRAY(imcols, imcols_shape);
 
-    conv_transform(output.get(), input, imcols.get(), kernel.get(), pad_h, pad_w,
-                   stride_w, stride_h);
-
-    conv_add_bias_to_output(output.get(), bias.get());
+    conv_forward(output.get(), input, imcols.get(), kernel.get(), pad_h, pad_w, stride_w, stride_h);
+    conv_forward_bias(output.get(), bias.get());
 }
 
 void Conv2D::backward() {
     const Array *input = prev->get_output();
-    const Array *output_grad = next->get_grad();
+    Array *output_grad = next->get_grad();
 
     INIT_ARRAY(grad, input->get_shape());
 
-    conv_propagate_bias_gradient(bias_grad.get(), output_grad);
-
-    conv_propagate_gradient(grad.get(), kernel_grad.get(), output_grad, input, kernel.get(),
-                            imcols.get(), pad_h, pad_w, stride_h, stride_w);
+    conv_backward_bias(bias_grad.get(), output_grad);
+    conv_backward(grad.get(), kernel_grad.get(), output_grad, input, kernel.get(), imcols.get(),
+                  pad_h, pad_w, stride_h, stride_w);
 }
 
 
