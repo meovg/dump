@@ -9,7 +9,7 @@ namespace nnv2 {
 
 class Layer {
 public:
-    Layer() {};
+    Layer(){};
 
     Layer(const Layer &other) = delete;
     Layer(Layer &&other) = delete;
@@ -28,8 +28,12 @@ public:
     virtual Array *get_grad() { return grad.get(); }
     virtual const Array *get_grad() const { return grad.get(); }
 
-    virtual void forward() { throw std::runtime_error("Layer::forward: not implemented"); }
-    virtual void backward() { throw std::runtime_error("Layer::forward: not implemented"); }
+    virtual void forward() {
+        throw std::runtime_error("Layer::forward: not implemented");
+    }
+    virtual void backward() {
+        throw std::runtime_error("Layer::forward: not implemented");
+    }
 
 protected:
     Layer *prev;

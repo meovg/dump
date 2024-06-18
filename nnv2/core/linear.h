@@ -1,11 +1,11 @@
 #pragma once
 
-#include "layer.h"
 #include "initializer.h"
+#include "layer.h"
 
 namespace nnv2 {
 
-class Linear: public Layer {
+class Linear : public Layer {
 public:
     Linear(int in_feats, int out_feats, const Initializer *init);
 

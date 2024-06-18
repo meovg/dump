@@ -44,7 +44,8 @@ void SimplyUniform::initialize(std::vector<float> &data) const {
 }
 
 static void normal_init(std::vector<float> &data, float s) {
-    unsigned seed = (unsigned)std::chrono::steady_clock::now().time_since_epoch().count();
+    unsigned seed =
+        (unsigned)std::chrono::steady_clock::now().time_since_epoch().count();
     std::default_random_engine rng(seed);
 
     std::normal_distribution<float> dist(0.f, s);
@@ -53,7 +54,8 @@ static void normal_init(std::vector<float> &data, float s) {
 }
 
 static void uniform_init(std::vector<float> &data, float r) {
-    unsigned seed = (unsigned)std::chrono::steady_clock::now().time_since_epoch().count();
+    unsigned seed =
+        (unsigned)std::chrono::steady_clock::now().time_since_epoch().count();
     std::default_random_engine rng(seed);
 
     std::uniform_real_distribution<float> dist(-r, r);

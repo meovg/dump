@@ -10,7 +10,8 @@ class Array {
 public:
     explicit Array(const std::vector<int> &_shape);
     explicit Array(const std::vector<int> &_shape, float value);
-    explicit Array(const std::vector<int> &_shape, const std::vector<float> &_vec);
+    explicit Array(const std::vector<int> &_shape,
+                   const std::vector<float> &_vec);
 
     Array(const Array &other);
     Array(Array &&other);

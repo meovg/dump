@@ -5,7 +5,7 @@
 
 namespace nnv2 {
 
-Array::Array(const std::vector<int> &_shape): shape(_shape) {
+Array::Array(const std::vector<int> &_shape) : shape(_shape) {
     int size = 1;
     for (int i = 0; i < shape.size(); i++) {
         size *= shape[i];
@@ -13,7 +13,7 @@ Array::Array(const std::vector<int> &_shape): shape(_shape) {
     vec.resize(size);
 }
 
-Array::Array(const std::vector<int> &_shape, float _value): shape(_shape) {
+Array::Array(const std::vector<int> &_shape, float _value) : shape(_shape) {
     int size = 1;
     for (int i = 0; i < shape.size(); i++) {
         size *= shape[i];
@@ -22,7 +22,7 @@ Array::Array(const std::vector<int> &_shape, float _value): shape(_shape) {
 }
 
 Array::Array(const std::vector<int> &_shape, const std::vector<float> &_vec)
-        : shape(_shape), vec(_vec.begin(), _vec.end()) {
+    : shape(_shape), vec(_vec.begin(), _vec.end()) {
     check_shape();
 }
 
@@ -70,11 +70,10 @@ void Array::check_shape() {
         size *= shape[i];
     }
 
-    CHECK_EQ(size, vec.size(), "Array::check_shape: shape mismatched with number of elements");
+    CHECK_EQ(size, vec.size(),
+             "Array::check_shape: shape mismatched with number of elements");
 }
 
-void Array::initialize(const Initializer *init) {
-    init->initialize(vec);
-}
+void Array::initialize(const Initializer *init) { init->initialize(vec); }
 
 } // namespace nnv2

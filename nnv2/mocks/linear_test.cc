@@ -7,47 +7,48 @@
 using namespace nnv2;
 
 void test_linear_forward(void) {
-    Array input({ 3, 4 }, { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 });
-    Array weights({ 4, 2 }, { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8 });
-    Array output({ 3, 2 });
+    Array input({3, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+    Array weights({4, 2}, {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8});
+    Array output({3, 2});
 
     linear_forward(&output, &input, &weights);
-    assert(output.get_vec() == std::vector<float>({ 5, 6, 11.4, 14, 17.8, 22 }));
+    assert(output.get_vec() == std::vector<float>({5, 6, 11.4, 14, 17.8, 22}));
 
     std::cout << "test_linear_forward: Passed" << std::endl;
 }
 
 void test_linear_forward_bias(void) {
-    Array bias({ 1, 2 }, { 1, 2 });
-    Array output({ 3, 2 }, { 5, 6, 11, 14, 17, 22 });
+    Array bias({1, 2}, {1, 2});
+    Array output({3, 2}, {5, 6, 11, 14, 17, 22});
 
     linear_forward_bias(&output, &bias);
-    assert(output.get_vec() == std::vector<float>({ 6, 8, 12, 16, 18, 24 }));
+    assert(output.get_vec() == std::vector<float>({6, 8, 12, 16, 18, 24}));
 
     std::cout << "test_linear_forward_bias: Passed" << std::endl;
 }
 
 void test_linear_backward(void) {
-    Array output_grad({ 2, 3 }, { 0, 1, 2, 3, 4, 5 });
-    Array input({ 2, 3 }, { 0, 1, 2, 3, 4, 5 });
-    Array weights({ 3, 3 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8 });
-    Array input_grad({ 2, 3 });
-    Array weights_grad({ 3, 3 });
+    Array output_grad({2, 3}, {0, 1, 2, 3, 4, 5});
+    Array input({2, 3}, {0, 1, 2, 3, 4, 5});
+    Array weights({3, 3}, {0, 1, 2, 3, 4, 5, 6, 7, 8});
+    Array input_grad({2, 3});
+    Array weights_grad({3, 3});
 
     linear_backward(&input_grad, &weights_grad, &input, &weights, &output_grad);
 
-    assert(input_grad.get_vec() == std::vector<float>({ 5, 14, 23, 14, 50, 86 }));
-    assert(weights_grad.get_vec() == std::vector<float>({ 9, 12, 15, 12, 17, 22, 15, 22, 29 }));
+    assert(input_grad.get_vec() == std::vector<float>({5, 14, 23, 14, 50, 86}));
+    assert(weights_grad.get_vec() ==
+           std::vector<float>({9, 12, 15, 12, 17, 22, 15, 22, 29}));
 
     std::cout << "test_linear_backward: Passed" << std::endl;
 }
 
 void test_linear_backward_bias(void) {
-    Array output_grad({ 2, 3 }, { 0, 1, 2, 3, 4, 5 });
-    Array bias_grad({ 1, 3 });
+    Array output_grad({2, 3}, {0, 1, 2, 3, 4, 5});
+    Array bias_grad({1, 3});
 
     linear_backward_bias(&bias_grad, &output_grad);
-    assert(bias_grad.get_vec() == std::vector<float>({ 3, 5, 7 }));
+    assert(bias_grad.get_vec() == std::vector<float>({3, 5, 7}));
 
     std::cout << "test_linear_backward_bias: Passed" << std::endl;
 }
