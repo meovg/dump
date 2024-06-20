@@ -6,51 +6,6 @@
 
 namespace nnv2 {
 
-static void im_add_pixel(Array *im, int feat_idx, int r, int c, int pad_h,
-                         int pad_w, float value) {
-    int h = im->get_shape()[2];
-    int w = im->get_shape()[3];
-
-    r -= pad_h;
-    c -= pad_w;
-
-    if (r < 0 || r >= h || c < 0 || c >= w) {
-        return;
-    }
-
-    int im_idx = (feat_idx * h + r) * w + c;
-    im->get_vec()[im_idx] += value;
-}
-
-void col2im(const Array *cols, Array *im, int pad_h, int pad_w, int kernel_h,
-            int kernel_w, int stride_h, int stride_w) {
-    int batch_size = im->get_shape()[0];
-    int im_feats = im->get_shape()[1];
-    int im_h = im->get_shape()[2];
-    int im_w = im->get_shape()[3];
-
-    int out_h = (im_h + 2 * pad_h - kernel_h) / stride_h + 1;
-    int out_w = (im_w + 2 * pad_w - kernel_w) / stride_w + 1;
-
-    int cols_size = batch_size * im_feats * kernel_h * kernel_w;
-    for (int i = 0; i < cols_size; i++) {
-        int kernel_r = (i / kernel_w) % kernel_h;
-        int kernel_c = i % kernel_w;
-        int feat_idx = i / kernel_w / kernel_h;
-
-        for (int r = 0; r < out_h; r++) {
-            for (int c = 0; c < out_w; c++) {
-                int im_r = kernel_r + stride_h * r;
-                int im_c = kernel_c + stride_w * c;
-
-                int cols_idx = (i * out_h + r) * out_w + c;
-                float value = cols->get_vec()[cols_idx];
-                im_add_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w, value);
-            }
-        }
-    }
-}
-
 static float im_get_pixel(const Array *im, int feat_idx, int r, int c,
                           int pad_h, int pad_w) {
     int h = im->get_shape()[2];
@@ -91,6 +46,51 @@ void im2col(const Array *im, Array *cols, int pad_h, int pad_w, int kernel_h,
                 int col_idx = (i * out_h + r) * out_w + c;
                 cols->get_vec()[col_idx] =
                     im_get_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w);
+            }
+        }
+    }
+}
+
+static void im_add_pixel(Array *im, int feat_idx, int r, int c, int pad_h,
+                         int pad_w, float value) {
+    int h = im->get_shape()[2];
+    int w = im->get_shape()[3];
+
+    r -= pad_h;
+    c -= pad_w;
+
+    if (r < 0 || r >= h || c < 0 || c >= w) {
+        return;
+    }
+
+    int im_idx = (feat_idx * h + r) * w + c;
+    im->get_vec()[im_idx] += value;
+}
+
+void col2im(const Array *cols, Array *im, int pad_h, int pad_w, int kernel_h,
+            int kernel_w, int stride_h, int stride_w) {
+    int batch_size = im->get_shape()[0];
+    int im_feats = im->get_shape()[1];
+    int im_h = im->get_shape()[2];
+    int im_w = im->get_shape()[3];
+
+    int out_h = (im_h + 2 * pad_h - kernel_h) / stride_h + 1;
+    int out_w = (im_w + 2 * pad_w - kernel_w) / stride_w + 1;
+
+    int cols_size = batch_size * im_feats * kernel_h * kernel_w;
+    for (int i = 0; i < cols_size; i++) {
+        int kernel_r = (i / kernel_w) % kernel_h;
+        int kernel_c = i % kernel_w;
+        int feat_idx = i / kernel_w / kernel_h;
+
+        for (int r = 0; r < out_h; r++) {
+            for (int c = 0; c < out_w; c++) {
+                int im_r = kernel_r + stride_h * r;
+                int im_c = kernel_c + stride_w * c;
+
+                int cols_idx = (i * out_h + r) * out_w + c;
+                float value = cols->get_vec()[cols_idx];
+                im_add_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w, value);
             }
         }
     }
@@ -221,8 +221,8 @@ void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad,
         {batch_size, out_feats, in_feats * kernel_h * kernel_w});
     func_matmul(&kernel_grad_unfolded, output_grad, &cols_t);
 
-    // dL/dY: shape (n, o_f, i_f * k_h * k_w) => (n, o_f, i_f, k_h, k_w)
-    // dL/dK is the sum of gradient along the batch
+    // dL/dY * Cols^T: shape(n, o_f, i_f * k_h * k_w) => (n, o_f, i_f, k_h, k_w)
+    // dL/dK is the sum of dL/dY * Cols^T along the batch
     kernel_grad_unfolded.reshape(
         {batch_size, out_feats, in_feats, kernel_h, kernel_w});
     func_sum(kernel_grad, &kernel_grad_unfolded, 0);
