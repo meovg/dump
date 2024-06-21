@@ -26,8 +26,6 @@ private:
     int kernel_w;
     int stride_h;
     int stride_w;
-    int out_h;
-    int out_w;
 
     std::unique_ptr<Array> kernel;
     std::unique_ptr<Array> kernel_grad;

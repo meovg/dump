@@ -277,8 +277,7 @@ Conv2D::Conv2D(int in_feats, int out_feats, int in_h, int in_w, int pad_h,
                int stride_w, const Initializer *init)
     : in_feats(in_feats), out_feats(out_feats), in_h(in_h), in_w(in_w),
       pad_h(pad_h), pad_w(pad_w), kernel_h(kernel_h), kernel_w(kernel_w),
-      stride_h(pad_h), stride_w(pad_w), out_h(in_h + 2 * pad_h - kernel_h + 1),
-      out_w(in_w + 2 * pad_w - kernel_w + 1) {
+      stride_h(pad_h), stride_w(pad_w) {
     kernel.reset(new Array({out_feats, in_feats, kernel_h, kernel_w}));
     kernel->initialize(init);
 
@@ -294,12 +293,11 @@ void Conv2D::forward() {
     const Array *input = prev->get_output();
 
     int batch = input->get_shape()[0];
-    std::vector<int> output_shape = {batch, out_feats, out_h, out_w};
-    std::vector<int> imcols_shape = {batch, in_feats * kernel_h * kernel_w,
-                                     out_h * out_w};
+    int out_h = (im_h + 2 * pad_h - kernel_h) / stride_h + 1;
+    int out_w = (im_w + 2 * pad_w - kernel_w) / stride_w + 1;
 
-    INIT_ARRAY(output, output_shape);
-    INIT_ARRAY(imcols, imcols_shape);
+    INIT_ARRAY(output, {batch, out_feats, out_h, out_w});
+    INIT_ARRAY(imcols, {batch, in_feats * kernel_h * kernel_w, out_h * out_w});
 
     conv_forward(output.get(), input, imcols.get(), kernel.get(), pad_h, pad_w,
                  stride_w, stride_h);
