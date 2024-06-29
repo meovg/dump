@@ -1,3 +1,6 @@
+# apply clang-format to all source code in directory
+# find <dir> -iname '*.h' -o -iname '*.cc' | xargs clang-format -i
+
 Language: Cpp
 BasedOnStyle: LLVM
 IndentWidth: 4
