@@ -32,7 +32,7 @@ public:
         throw std::runtime_error("Layer::forward: not implemented");
     }
     virtual void backward() {
-        throw std::runtime_error("Layer::forward: not implemented");
+        throw std::runtime_error("Layer::backward: not implemented");
     }
 
 protected:

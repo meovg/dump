@@ -4,7 +4,7 @@
 
 namespace nnv2 {
 
-class Mnist: public Dataset {
+class Mnist : public Dataset {
 public:
     Mnist(std::string data_path);
 

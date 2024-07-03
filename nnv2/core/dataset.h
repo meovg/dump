@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <random>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace nnv2 {
@@ -12,7 +12,7 @@ namespace nnv2 {
 class Dataset {
 public:
     Dataset(std::string data_path, int h, int w, int label_count)
-        : data_path(data_path), h(h), w(w), label_count(label_count) {};
+        : data_path(data_path), h(h), w(w), label_count(label_count){};
 
     void shuffle_train_data() {
         unsigned int seed =

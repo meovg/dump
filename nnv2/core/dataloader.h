@@ -8,24 +8,27 @@
 
 namespace nnv2 {
 
-class DataLoader: public Layer {
+class DataLoader : public Layer {
 public:
     explicit DataLoader(std::unique_ptr<Dataset> dataset, int batch_size)
         : dataset(std::move(dataset)), batch_size(batch_size),
-          train_data_offset(0), test_data_offset(0) {};
+          train_data_offset(0), test_data_offset(0){};
 
     // load a single batch of images (assigned to `output`) and their labels
     // in one-hot encoding (assigned to `output_labels`)
-    void forward(bool is_train);
+    void load_train_batch();
+    void load_test_batch();
 
     void reset();
 
     // check if there's any batch left in train/test data
-    bool has_next(bool is_train);
+    bool has_next_train_batch();
+    bool has_next_test_batch();
 
     Array *get_labels() { return output_labels.get(); }
 
     void health_check() const;
+
 private:
     // the dataset
     std::unique_ptr<Dataset> dataset;

@@ -5,7 +5,7 @@
 
 namespace nnv2 {
 
-Mnist::Mnist(std::string data_path): Dataset(data_path, 28, 28, 10) {
+Mnist::Mnist(std::string data_path) : Dataset(data_path, 28, 28, 10) {
     // read train data
     read_images(train_images, data_path + "/train-images-idx3-ubyte", true);
     read_labels(train_labels, data_path + "/train-labels-idx1-ubyte");
@@ -51,8 +51,7 @@ void Mnist::read_images(std::vector<std::vector<float>> &output,
         std::cout << "cols = " << n_cols << std::endl;
 
         CHECK_EQ(h, n_rows, "Mnist::read_images: row length must be 28");
-        CHECK_EQ(w, n_cols,
-                 "Mnist::read_images: column length must be 28");
+        CHECK_EQ(w, n_cols, "Mnist::read_images: column length must be 28");
 
         // read and normalize images
         float mean = is_train ? train_mean : test_mean;
