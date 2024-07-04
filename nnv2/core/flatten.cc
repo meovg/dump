@@ -10,7 +10,6 @@ void Flatten::forward() {
     for (int i = 1; i < in_shape.size(); i++) {
         out_feats *= in_shape[i];
     }
-
     input->reshape({in_shape[0], out_feats});
 }
 

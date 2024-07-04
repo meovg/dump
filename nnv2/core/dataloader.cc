@@ -28,20 +28,18 @@ void DataLoader::load_train_batch() {
               0);
 
     // extract a batch of train data
-    std::vector<float> output_buffer;
-    output_buffer.reserve(size * h * w);
-
+    int im_stride = h * w;
     for (int i = start; i < end; i++) {
         // train images
-        output_buffer.insert(output_buffer.end(),
-                             dataset->get_train_images()[i].begin(),
-                             dataset->get_train_images()[i].end());
+        std::copy(dataset->get_train_images()[i].begin(),
+                  dataset->get_train_images()[i].end(),
+                  output->get_vec().begin() + (i - start) * im_stride);
+
         // train labels, with one-hot encoding
         int one_hot_index =
-            (i - start) * n_labels + (int)(dataset->get_train_labels()[i]);
+            (i - start) * n_labels + (int)dataset->get_train_labels()[i];
         output_labels->get_vec()[one_hot_index] = 1;
     }
-    output->get_vec() = std::move(output_buffer);
 }
 
 void DataLoader::load_test_batch() {
@@ -65,20 +63,18 @@ void DataLoader::load_test_batch() {
               0);
 
     // extract a batch of test data
-    std::vector<float> output_buffer;
-    output_buffer.reserve(size * h * w);
-
+    int im_stride = h * w;
     for (int i = start; i < end; i++) {
         // test images
-        output_buffer.insert(output_buffer.end(),
-                             dataset->get_test_images()[i].begin(),
-                             dataset->get_test_images()[i].end());
+        std::copy(dataset->get_test_images()[i].begin(),
+                  dataset->get_test_images()[i].end(),
+                  output->get_vec().begin() + (i - start) * im_stride);
+
         // test labels, with one-hot encoding
         int one_hot_index =
-            (i - start) * n_labels + (int)(dataset->get_test_labels()[i]);
+            (i - start) * n_labels + (int)dataset->get_test_labels()[i];
         output_labels->get_vec()[one_hot_index] = 1;
     }
-    output->get_vec() = std::move(output_buffer);
 }
 
 bool DataLoader::has_next_train_batch() {
@@ -102,7 +98,6 @@ void DataLoader::health_check() const {
 void DataLoader::reset() {
     train_data_offset = 0;
     test_data_offset = 0;
-
     dataset->shuffle_train_data();
 }
 
