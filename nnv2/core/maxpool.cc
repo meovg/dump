@@ -129,7 +129,9 @@ void MaxPool2D::forward() {
 }
 
 void MaxPool2D::backward() {
+    const Array *input = prev->get_output();
     const Array *output_grad = next->get_grad();
+    INIT_ARRAY(grad, input->get_shape());
     maxpool_backward(grad.get(), output_grad, indices);
 }
 

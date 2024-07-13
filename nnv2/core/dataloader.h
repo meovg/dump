@@ -16,8 +16,8 @@ public:
 
     // load a single batch of images (assigned to `output`) and their labels
     // in one-hot encoding (assigned to `output_labels`)
-    void load_train_batch();
-    void load_test_batch();
+    int load_train_batch();
+    int load_test_batch();
 
     void reset();
 

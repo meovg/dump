@@ -161,8 +161,7 @@ void conv_forward_bias(Array *output, const Array *bias) {
     }
 }
 
-// This function calculates the input gradient, kernel gradient from the output
-// gradient
+// Calculates the input gradient, kernel gradient from the output gradient
 void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad,
                    const Array *input, Array *kernel, const Array *cols,
                    int pad_h, int pad_w, int stride_h, int stride_w) {
@@ -277,16 +276,22 @@ Conv2D::Conv2D(int in_feats, int out_feats, int in_h, int in_w, int pad_h,
                int stride_w, const Initializer *init)
     : in_feats(in_feats), out_feats(out_feats), in_h(in_h), in_w(in_w),
       pad_h(pad_h), pad_w(pad_w), kernel_h(kernel_h), kernel_w(kernel_w),
-      stride_h(pad_h), stride_w(pad_w) {
+      stride_h(stride_h), stride_w(stride_w) {
     kernel.reset(new Array({out_feats, in_feats, kernel_h, kernel_w}));
-    kernel->initialize(init);
+
+    int fan_in = kernel_h * kernel_w * in_feats;
+    int fan_out = kernel_h * kernel_w * out_feats;
+    init->initialize(kernel.get(), fan_in, fan_out);
 
     kernel_grad.reset(new Array({out_feats, in_feats, kernel_h, kernel_w}));
 
     bias.reset(new Array({1, out_feats}));
-    bias->initialize(init);
-
     bias_grad.reset(new Array({1, out_feats}));
+}
+
+std::vector<Param> Conv2D::get_parameters() {
+    return {std::make_pair(kernel.get(), kernel_grad.get()),
+            std::make_pair(bias.get(), bias_grad.get())};
 }
 
 void Conv2D::forward() {
@@ -303,7 +308,7 @@ void Conv2D::forward() {
     INIT_ARRAY(imcols, imcols_shape);
 
     conv_forward(output.get(), input, imcols.get(), kernel.get(), pad_h, pad_w,
-                 stride_w, stride_h);
+                 stride_h, stride_w);
     conv_forward_bias(output.get(), bias.get());
 }
 

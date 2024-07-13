@@ -6,7 +6,7 @@ namespace nnv2 {
 
 class Flatten : public Layer {
 public:
-    Flatten();
+    Flatten() : Layer(){};
 
     void forward() override;
     void backward() override;

@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cassert>
+#include <cfloat>
 #include <utility>
 
 #include "array.h"
@@ -10,7 +13,7 @@ Array::Array(const std::vector<int> &_shape) : shape(_shape) {
     for (int i = 0; i < shape.size(); i++) {
         size *= shape[i];
     }
-    vec.resize(size);
+    vec.resize(size, FLT_MIN);
 }
 
 Array::Array(const std::vector<int> &_shape, float _value) : shape(_shape) {
@@ -26,9 +29,13 @@ Array::Array(const std::vector<int> &_shape, const std::vector<float> &_vec)
     check_shape();
 }
 
-Array::Array(const Array &other) { *this = other; }
+Array::Array(const Array &other) {
+    *this = other;
+}
 
-Array::Array(Array &&other) { *this = std::move(other); }
+Array::Array(Array &&other) {
+    *this = std::move(other);
+}
 
 Array &Array::operator=(const Array &other) {
     if (this != &other) {
@@ -44,6 +51,10 @@ Array &Array::operator=(Array &&other) {
         vec = std::move(other.vec);
     }
     return *this;
+}
+
+void Array::zero() {
+    std::fill(vec.begin(), vec.end(), FLT_MIN);
 }
 
 void Array::reshape(const std::vector<int> &_shape) {
@@ -73,7 +84,5 @@ void Array::check_shape() {
     CHECK_EQ(size, vec.size(),
              "Array::check_shape: shape mismatched with number of elements");
 }
-
-void Array::initialize(const Initializer *init) { init->initialize(vec); }
 
 } // namespace nnv2

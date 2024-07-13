@@ -31,7 +31,6 @@ public:
     const std::vector<std::vector<float>> &get_train_images() const {
         return train_images;
     }
-
     const std::vector<std::vector<float>> &get_test_images() const {
         return test_images;
     }
@@ -39,7 +38,6 @@ public:
     const std::vector<unsigned char> &get_train_labels() const {
         return train_labels;
     }
-
     const std::vector<unsigned char> &get_test_labels() const {
         return test_labels;
     }
@@ -47,7 +45,6 @@ public:
 protected:
     virtual void read_images(std::vector<std::vector<float>> &output,
                              std::string filename, bool is_train) = 0;
-
     virtual void read_labels(std::vector<unsigned char> &output,
                              std::string filename) = 0;
 

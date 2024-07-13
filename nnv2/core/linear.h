@@ -9,6 +9,8 @@ class Linear : public Layer {
 public:
     Linear(int in_feats, int out_feats, const Initializer *init);
 
+    std::vector<Param> get_parameters() override;
+
     void forward() override;
     void backward() override;
 

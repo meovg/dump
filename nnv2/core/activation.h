@@ -6,7 +6,7 @@ namespace nnv2 {
 
 class ReLU : public Layer {
 public:
-    ReLU();
+    ReLU() : Layer() {}
 
     void forward() override;
     void backward() override;
@@ -18,14 +18,10 @@ public:
 
 class Softmax : public Layer {
 public:
-    Softmax();
+    Softmax() : Layer() {}
 
     void forward() override;
     void backward() override;
-
-    Array *get_grad() { return next->get_grad(); }
-
-    Array *get_output() { return prev->get_output(); }
 };
 
 void relu_forward(Array *output, const Array *input);

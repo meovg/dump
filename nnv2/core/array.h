@@ -2,8 +2,6 @@
 
 #include <vector>
 
-#include "initializer.h"
-
 namespace nnv2 {
 
 class Array {
@@ -21,12 +19,12 @@ public:
     void reshape(const std::vector<int> &_shape);
     void resize(const std::vector<int> &_shape);
 
+    void zero();
+
     const std::vector<int> &get_shape() const { return shape; }
 
     std::vector<float> &get_vec() { return vec; }
     const std::vector<float> &get_vec() const { return vec; }
-
-    void initialize(const Initializer *init);
 
 private:
     void check_shape();

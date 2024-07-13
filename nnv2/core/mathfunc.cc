@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 #include <vector>
 
@@ -29,7 +30,7 @@ void func_add(Array *output, const Array *input, float value) {
 
     std::transform(input->get_vec().begin(), input->get_vec().end(),
                    output->get_vec().begin(),
-                   [value](const float &e) { return e + value; });
+                   [value](float e) { return e + value; });
 }
 
 void func_sub(Array *output, const Array *input1, const Array *input2) {
@@ -52,7 +53,7 @@ void func_sub(Array *output, const Array *input, float value) {
 
     std::transform(input->get_vec().begin(), input->get_vec().end(),
                    output->get_vec().begin(),
-                   [value](const float &e) { return e - value; });
+                   [value](float e) { return e - value; });
 }
 
 void func_mul(Array *output, const Array *input1, const Array *input2) {
@@ -75,9 +76,10 @@ void func_mul(Array *output, const Array *input, float value) {
 
     std::transform(input->get_vec().begin(), input->get_vec().end(),
                    output->get_vec().begin(),
-                   [value](const float &e) { return e * value; });
+                   [value](float e) { return e * value; });
 }
 
+// TODO: handle case where input2 contains value 0.0
 void func_div(Array *output, const Array *input1, const Array *input2) {
     int input1_size = input1->get_vec().size();
     int input2_size = input2->get_vec().size();
@@ -90,6 +92,15 @@ void func_div(Array *output, const Array *input1, const Array *input2) {
     std::transform(input1->get_vec().begin(), input1->get_vec().end(),
                    input2->get_vec().begin(), output->get_vec().begin(),
                    std::divides<float>());
+}
+
+// TODO: handle case where input contains value 0.0
+void func_log(Array *output, const Array *input) {
+    CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
+             "func_log: size of output mismatched with size of input");
+
+    std::transform(input->get_vec().begin(), input->get_vec().end(),
+                   output->get_vec().begin(), [](float e) { return logf(e); });
 }
 
 void func_matmul(Array *output, const Array *input1, const Array *input2,
@@ -228,16 +239,16 @@ void func_sum(Array *output, const Array *input, int axis, bool reduce) {
 
     // validate output shape
     std::vector<int> output_shape = input->get_shape();
-
     if (reduce) {
         output_shape.erase(output_shape.begin() + axis);
     } else {
         output_shape[axis] = 1;
     }
 
-    CHECK_EQ(output->get_shape(), output_shape,
-             "func_sum: output shape does not equal to the shape of reduced "
-             "form of input");
+    CHECK_EQ(
+        output->get_shape(), output_shape,
+        "func_sum: output shape does not equal to the shape of reduced form "
+        "of input");
 
     // calculate stride
     int stride = 1;
@@ -252,11 +263,9 @@ void func_sum(Array *output, const Array *input, int axis, bool reduce) {
     for (int i = 0; i < output_size; i++) {
         int base_index = (i / stride) * stride * axis_size + (i % stride);
         float total = 0.f;
-
         for (int j = 0; j < axis_size; j++) {
             total += input->get_vec()[base_index + j * stride];
         }
-
         output->get_vec()[i] = total;
     }
 }
@@ -269,7 +278,6 @@ void func_mean(Array *output, const Array *input, int axis, bool reduce) {
 
     // validate output shape
     std::vector<int> output_shape = input->get_shape();
-
     if (reduce) {
         output_shape.erase(output_shape.begin() + axis);
     } else {
@@ -293,11 +301,9 @@ void func_mean(Array *output, const Array *input, int axis, bool reduce) {
     for (int i = 0; i < output_size; i++) {
         int base_index = (i / stride) * stride * axis_size + (i % stride);
         float total = 0.f;
-
         for (int j = 0; j < axis_size; j++) {
             total += input->get_vec()[base_index + j * stride];
         }
-
         output->get_vec()[i] = total / axis_size;
     }
 }

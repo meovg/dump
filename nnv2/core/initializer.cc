@@ -22,42 +22,42 @@ static void uniform_init(std::vector<float> &data, float r) {
     std::for_each(data.begin(), data.end(), [&](float &e) { e = dist(rng); });
 }
 
-void LecunNormal::initialize(std::vector<float> &data) const {
+void LecunNormal::initialize(Array *a, int fan_in, int fan_out) const {
     float s = std::sqrt(1.f / fan_in);
-    normal_init(data, s);
+    normal_init(a->get_vec(), s);
 }
 
-void XavierNormal::initialize(std::vector<float> &data) const {
+void XavierNormal::initialize(Array *a, int fan_in, int fan_out) const {
     float s = std::sqrt(2.f / (fan_in + fan_out));
-    normal_init(data, s);
+    normal_init(a->get_vec(), s);
 }
 
-void KaimingNormal::initialize(std::vector<float> &data) const {
+void KaimingNormal::initialize(Array *a, int fan_in, int fan_out) const {
     float s = std::sqrt(2.f / fan_in);
-    normal_init(data, s);
+    normal_init(a->get_vec(), s);
 }
 
-void SimplyNormal::initialize(std::vector<float> &data) const {
-    normal_init(data, 0.1f);
+void SimplyNormal::initialize(Array *a, int fan_in, int fan_out) const {
+    normal_init(a->get_vec(), 0.1f);
 }
 
-void LecunUniform::initialize(std::vector<float> &data) const {
+void LecunUniform::initialize(Array *a, int fan_in, int fan_out) const {
     float r = std::sqrt(1.f / fan_in);
-    uniform_init(data, r);
+    uniform_init(a->get_vec(), r);
 }
 
-void XavierUniform::initialize(std::vector<float> &data) const {
+void XavierUniform::initialize(Array *a, int fan_in, int fan_out) const {
     float r = std::sqrt(6.f / (fan_in + fan_out));
-    uniform_init(data, r);
+    uniform_init(a->get_vec(), r);
 }
 
-void KaimingUniform::initialize(std::vector<float> &data) const {
+void KaimingUniform::initialize(Array *a, int fan_in, int fan_out) const {
     float r = std::sqrt(6.f / fan_in);
-    uniform_init(data, r);
+    uniform_init(a->get_vec(), r);
 }
 
-void SimplyUniform::initialize(std::vector<float> &data) const {
-    uniform_init(data, 0.01f);
+void SimplyUniform::initialize(Array *a, int fan_in, int fan_out) const {
+    uniform_init(a->get_vec(), 0.01f);
 }
 
 } // namespace nnv2

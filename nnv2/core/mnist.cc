@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <fstream>
 
 #include "mnist.h"
@@ -15,24 +16,24 @@ Mnist::Mnist(std::string data_path) : Dataset(data_path, 28, 28, 10) {
     read_labels(test_labels, data_path + "/t10k-labels-idx1-ubyte");
 };
 
-static unsigned int reverse_int(unsigned int i) {
+static unsigned reverse_int(unsigned i) {
     unsigned char ch1, ch2, ch3, ch4;
     ch1 = i & 255;
     ch2 = (i >> 8) & 255;
     ch3 = (i >> 16) & 255;
     ch4 = (i >> 24) & 255;
-    return ((unsigned int)ch1 << 24) + ((unsigned int)ch2 << 16) +
-           ((unsigned int)ch3 << 8) + (unsigned int)ch4;
+    return ((unsigned)ch1 << 24) + ((unsigned)ch2 << 16) +
+           ((unsigned)ch3 << 8) + (unsigned)ch4;
 }
 
 void Mnist::read_images(std::vector<std::vector<float>> &output,
                         std::string filename, bool is_train) {
     std::ifstream file(filename, std::ios::binary);
     if (file.is_open()) {
-        unsigned int magic_number = 0;
-        unsigned int n_images = 0;
-        unsigned int n_rows = 0;
-        unsigned int n_cols = 0;
+        unsigned magic_number = 0;
+        unsigned n_images = 0;
+        unsigned n_rows = 0;
+        unsigned n_cols = 0;
 
         // read metadata
         file.read((char *)&magic_number, sizeof(magic_number));
@@ -63,11 +64,14 @@ void Mnist::read_images(std::vector<std::vector<float>> &output,
             file.read((char *)image.data(), sizeof(unsigned char) * h * w);
 
             // normalize image
-            for (int k = 0; k < h * w; k++) {
+            for (int k = 0; k < h * w; k++)
                 normalized_image[k] = ((float)image[k] / 255 - mean) / stddev;
-            }
+
             output.push_back(normalized_image);
         }
+    } else {
+        std::cerr << filename << " not found" << std::endl;
+        exit(1);
     }
 }
 
@@ -75,8 +79,8 @@ void Mnist::read_labels(std::vector<unsigned char> &output,
                         std::string filename) {
     std::ifstream file(filename, std::ios::binary);
     if (file.is_open()) {
-        unsigned int magic_number = 0;
-        unsigned int n_images = 0;
+        unsigned magic_number = 0;
+        unsigned n_images = 0;
 
         file.read((char *)&magic_number, sizeof(magic_number));
         file.read((char *)&n_images, sizeof(n_images));
@@ -92,6 +96,9 @@ void Mnist::read_labels(std::vector<unsigned char> &output,
             file.read((char *)&label, sizeof(label));
             output.push_back(label);
         }
+    } else {
+        std::cerr << filename << " not found" << std::endl;
+        exit(1);
     }
 }
 

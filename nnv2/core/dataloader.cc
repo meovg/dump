@@ -7,7 +7,7 @@
 
 namespace nnv2 {
 
-void DataLoader::load_train_batch() {
+int DataLoader::load_train_batch() {
     // update offset
     int start = train_data_offset;
     int end =
@@ -24,8 +24,6 @@ void DataLoader::load_train_batch() {
     int n_labels = dataset->get_label_count();
     std::vector<int> output_labels_shape = {size, n_labels};
     INIT_ARRAY(output_labels, output_labels_shape);
-    std::fill(output_labels->get_vec().begin(), output_labels->get_vec().end(),
-              0);
 
     // extract a batch of train data
     int im_stride = h * w;
@@ -38,11 +36,13 @@ void DataLoader::load_train_batch() {
         // train labels, with one-hot encoding
         int one_hot_index =
             (i - start) * n_labels + (int)dataset->get_train_labels()[i];
-        output_labels->get_vec()[one_hot_index] = 1;
+        output_labels->get_vec()[one_hot_index] = 1.0;
     }
+
+    return size;
 }
 
-void DataLoader::load_test_batch() {
+int DataLoader::load_test_batch() {
     // update offset
     int start = test_data_offset;
     int end =
@@ -73,8 +73,10 @@ void DataLoader::load_test_batch() {
         // test labels, with one-hot encoding
         int one_hot_index =
             (i - start) * n_labels + (int)dataset->get_test_labels()[i];
-        output_labels->get_vec()[one_hot_index] = 1;
+        output_labels->get_vec()[one_hot_index] = 1.0;
     }
+
+    return size;
 }
 
 bool DataLoader::has_next_train_batch() {

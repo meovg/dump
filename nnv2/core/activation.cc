@@ -31,38 +31,37 @@ void relu_backward(Array *input_grad, const Array *output_grad,
 }
 
 void ReLU::forward() {
-    const Array *input = prev->get_output();
-    INIT_ARRAY(output, input->get_shape());
-    relu_forward(output.get(), input);
+    Array *input = prev->get_output();
+    relu_forward(input, input);
 }
 
 void ReLU::backward() {
     const Array *input = prev->get_output();
-    const Array *output_grad = next->get_grad();
-    INIT_ARRAY(grad, output_grad->get_shape());
-    relu_backward(grad.get(), output_grad, input);
+    Array *output_grad = next->get_grad();
+    relu_backward(output_grad, output_grad, input);
 }
 
 void softmax_forward(Array *output, const Array *input) {
     CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
              "softmax_forward: output size not equal to input size");
 
-    int im_count = input->get_shape()[0] * input->get_shape()[1];
-    int h = input->get_shape()[2];
-    int w = input->get_shape()[3];
-    int im_stride = h * w;
+    int batch_size = input->get_shape()[0];
+    int batch_stride =
+        std::accumulate(input->get_shape().begin() + 1,
+                        input->get_shape().end(), 1.0, std::multiplies<int>());
 
-    for (int i = 0; i < im_count; i++) {
-        auto in_begin = input->get_vec().begin() + i * im_stride;
-        auto out_begin = output->get_vec().begin() + i * im_stride;
+    for (int i = 0; i < batch_size; i++) {
+        auto in_begin = input->get_vec().begin() + i * batch_stride;
+        auto out_begin = output->get_vec().begin() + i * batch_stride;
 
-        float max_val = *std::max_element(in_begin, in_begin + im_stride);
+        float max_val = *std::max_element(in_begin, in_begin + batch_stride);
 
-        std::transform(in_begin, in_begin + im_stride, out_begin,
+        std::transform(in_begin, in_begin + batch_stride, out_begin,
                        [&](float x) { return std::exp(x - max_val); });
 
-        float exp_sum = std::accumulate(out_begin, out_begin + im_stride, 0.f);
-        for (int k = 0; k < im_stride; k++) {
+        float exp_sum =
+            std::accumulate(out_begin, out_begin + batch_stride, 0.f);
+        for (int k = 0; k < batch_stride; k++) {
             out_begin[k] /= exp_sum;
         }
     }

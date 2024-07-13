@@ -11,6 +11,8 @@ public:
            int pad_w, int kernel_h, int kernel_w, int stride_h, int stride_w,
            const Initializer *init);
 
+    std::vector<Param> get_parameters() override;
+
     void forward() override;
     void backward() override;
 

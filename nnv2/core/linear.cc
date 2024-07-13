@@ -46,11 +46,17 @@ void linear_backward_bias(Array *bias_grad, const Array *output_grad) {
 Linear::Linear(int in_feats, int out_feats, const Initializer *init)
     : in_feats(in_feats), out_feats(out_feats) {
     weight.reset(new Array({in_feats, out_feats}));
-    weight->initialize(init);
+    init->initialize(weight.get(), in_feats, out_feats);
+
     weight_grad.reset(new Array({in_feats, out_feats}));
 
     bias.reset(new Array({1, out_feats}, 0.f));
     bias_grad.reset(new Array({1, out_feats}));
+}
+
+std::vector<Param> Linear::get_parameters() {
+    return {std::make_pair(weight.get(), weight_grad.get()),
+            std::make_pair(bias.get(), bias_grad.get())};
 }
 
 void Linear::forward() {

@@ -2,10 +2,13 @@
 
 #include <memory>
 #include <stdexcept>
+#include <utility>
 
 #include "array.h"
 
 namespace nnv2 {
+
+using Param = std::pair<Array *, Array *>;
 
 class Layer {
 public:
@@ -16,10 +19,9 @@ public:
     Layer &operator=(const Layer &other) = delete;
     Layer &operator=(Layer &&other) = delete;
 
-    Layer &connect_layer(Layer &next_layer) {
-        this->next = &next_layer;
-        next_layer.prev = this;
-        return next_layer;
+    void connect(Layer *next_layer) {
+        this->next = next_layer;
+        next_layer->prev = this;
     }
 
     virtual Array *get_output() { return output.get(); }
@@ -27,6 +29,8 @@ public:
 
     virtual Array *get_grad() { return grad.get(); }
     virtual const Array *get_grad() const { return grad.get(); }
+
+    virtual std::vector<Param> get_parameters() { return {}; }
 
     virtual void forward() {
         throw std::runtime_error("Layer::forward: not implemented");

@@ -2,91 +2,62 @@
 
 #include <vector>
 
+#include "array.h"
+
 namespace nnv2 {
 
 class Initializer {
 public:
     Initializer(){};
-
-    virtual void initialize(std::vector<float> &data) const = 0;
+    virtual void initialize(Array *a, int fan_in, int fan_out) const = 0;
 };
 
 class LecunNormal : public Initializer {
 public:
-    LecunNormal(int _fan_in) : Initializer(), fan_in(_fan_in) {}
-
-    void initialize(std::vector<float> &data) const override;
-
-private:
-    int fan_in;
+    LecunNormal() : Initializer() {}
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class XavierNormal : public Initializer {
 public:
-    XavierNormal(int _fan_in, int _fan_out)
-        : Initializer(), fan_in(_fan_in), fan_out(_fan_out) {}
-
-    void initialize(std::vector<float> &data) const override;
-
-private:
-    int fan_in;
-    int fan_out;
+    XavierNormal() : Initializer() {}
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class KaimingNormal : public Initializer {
 public:
-    KaimingNormal(int _fan_in) : Initializer(), fan_in(_fan_in) {}
-
-    void initialize(std::vector<float> &data) const override;
-
-private:
-    int fan_in;
+    KaimingNormal() : Initializer() {}
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class SimplyNormal : public Initializer {
 public:
     SimplyNormal() : Initializer() {}
-
-    void initialize(std::vector<float> &data) const override;
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class LecunUniform : public Initializer {
 public:
-    LecunUniform(int _fan_in) : Initializer(), fan_in(_fan_in) {}
-
-    void initialize(std::vector<float> &data) const override;
-
-private:
-    int fan_in;
+    LecunUniform() : Initializer() {}
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class XavierUniform : public Initializer {
 public:
-    XavierUniform(int _fan_in, int _fan_out)
-        : Initializer(), fan_in(_fan_in), fan_out(_fan_out) {}
-
-    void initialize(std::vector<float> &data) const override;
-
-private:
-    int fan_in;
-    int fan_out;
+    XavierUniform() : Initializer() {}
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class KaimingUniform : public Initializer {
 public:
-    KaimingUniform(int _fan_in) : Initializer(), fan_in(_fan_in) {}
-
-    void initialize(std::vector<float> &data) const override;
-
-private:
-    int fan_in;
+    KaimingUniform() : Initializer() {}
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 class SimplyUniform : public Initializer {
 public:
     SimplyUniform() : Initializer() {}
-
-    void initialize(std::vector<float> &data) const override;
+    void initialize(Array *a, int fan_in, int fan_out) const override;
 };
 
 } // namespace nnv2
