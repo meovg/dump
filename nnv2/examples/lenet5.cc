@@ -37,13 +37,13 @@ int main() {
     net.add(new Softmax);
 
     auto dataset = std::make_unique<Mnist>(data_path);
-    DataLoader loader(std::move(dataset), 64);
+    auto loader = std::make_unique<DataLoader>(std::move(dataset), 32);
     auto loss = std::make_unique<CrossEntropyLoss>();
     auto optimizer = std::make_unique<SGD>(0.01, 0);
 
     std::cout << "network setup complete" << std::endl;
 
-    net.init(&loader, loss.get(), optimizer.get());
+    net.init(loader.get(), loss.get(), optimizer.get());
     net.train(30);
 
     return 0;

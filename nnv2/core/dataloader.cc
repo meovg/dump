@@ -59,8 +59,6 @@ int DataLoader::load_test_batch() {
     int n_labels = dataset->get_label_count();
     std::vector<int> output_labels_shape = {size, n_labels};
     INIT_ARRAY(output_labels, output_labels_shape);
-    std::fill(output_labels->get_vec().begin(), output_labels->get_vec().end(),
-              0);
 
     // extract a batch of test data
     int im_stride = h * w;

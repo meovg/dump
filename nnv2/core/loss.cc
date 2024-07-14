@@ -22,6 +22,7 @@ float CrossEntropyLoss::calculate_loss(const Array *results) {
     // calculate average log loss value of a batch
     Array loss({preds->get_shape()[0]});
     func_log(&loss, &top1_dist_reduced);
+
     Array loss_mean({1});
     func_mean(&loss_mean, &loss, 0, false);
 

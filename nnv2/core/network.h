@@ -23,9 +23,10 @@ public:
 
 private:
     std::vector<std::unique_ptr<Layer>> layers;
-    std::shared_ptr<DataLoader> loader;
-    std::unique_ptr<Loss> loss;
-    std::unique_ptr<SGD> optimizer;
+
+    DataLoader *loader;
+    Loss *loss;
+    SGD *optimizer;
 };
 
 } // namespace nnv2

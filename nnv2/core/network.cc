@@ -12,16 +12,14 @@ void Network::add(Layer *layer) {
 }
 
 void Network::init(DataLoader *loader_, Loss *loss_, SGD *optimizer_) {
-    loader.reset(loader_);
-    loss.reset(loss_);
-    optimizer.reset(optimizer_);
+    loader = loader_;
+    loss = loss_;
+    optimizer = optimizer_;
 
     CHECK_COND(layers.size() > 0, "No layers found in the network");
 
     // connect loader to the first layer
-    std::shared_ptr<Layer> loader_base = std::make_shared<Layer>();
-    loader_base = std::static_pointer_cast<Layer>(loader);
-    loader_base->connect(layers.front().get());
+    loader->connect(layers.front().get());
 
     // connect each layer to the subsequent one
     for (int i = 1; i < layers.size(); i++) {
@@ -29,7 +27,7 @@ void Network::init(DataLoader *loader_, Loss *loss_, SGD *optimizer_) {
     }
 
     // connect the last layer to the loss layer
-    layers.back()->connect(loss.get());
+    layers.back()->connect(loss);
 
     // register parameters to the optimizer
     for (int i = 0; i < layers.size(); i++) {
@@ -67,8 +65,8 @@ void Network::train(int epochs) {
         }
 
         std::cout << "[Epoch: " << e + 1 << "/" << epochs << "] ";
-        std::cout << "Avg. loss: " << loss_sum / batch_count << ", ";
-        std::cout << "Avg. accuracy: " << accuracy / batch_count << std::endl;
+        std::cout << "Avg loss: " << loss_sum / batch_count << ", ";
+        std::cout << "Avg accuracy: " << accuracy / batch_count << "; ";
 
         test();
     }
@@ -94,10 +92,8 @@ void Network::test() {
     }
 
     // print some stats here
-    std::cout << "[Test] ";
-    std::cout << "Avg. loss (test): " << loss_sum / batch_count << ", ";
-    std::cout << "Avg. accuracy (test): " << accuracy / batch_count
-              << std::endl;
+    std::cout << "Avg loss (test): " << loss_sum / batch_count << ", ";
+    std::cout << "Avg accuracy (test): " << accuracy / batch_count << std::endl;
 }
 
 float Network::top1_accuracy(const Array *preds, const Array *results) {

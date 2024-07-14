@@ -32,6 +32,9 @@ namespace nnv2 {
             (arr_ptr).reset(new Array((shape)));                               \
         } else if (arr_ptr->get_shape() != shape) {                            \
             (arr_ptr)->resize((shape));                                        \
+            (arr_ptr)->zero();                                                 \
+        } else {                                                               \
+            (arr_ptr)->zero();                                                 \
         }                                                                      \
     } while (0)
 
