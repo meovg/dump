@@ -9,7 +9,7 @@ namespace nnv2 {
 
 void relu_forward(Array *output, const Array *input) {
     CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
-             "relu_forward: output size not equal to input size");
+             "relu_forward: output size isn't equal to input size");
 
     std::transform(input->get_vec().begin(), input->get_vec().end(),
                    output->get_vec().begin(),
@@ -18,11 +18,10 @@ void relu_forward(Array *output, const Array *input) {
 
 void relu_backward(Array *input_grad, const Array *output_grad,
                    const Array *input) {
-    CHECK_EQ(
-        input_grad->get_vec().size(), output_grad->get_vec().size(),
-        "relu_backward: input gradient size not equal to output gradient size");
+    CHECK_EQ(input_grad->get_vec().size(), output_grad->get_vec().size(),
+             "relu_backward: input grad size isn't equal to output grad size");
     CHECK_EQ(input_grad->get_vec().size(), input->get_vec().size(),
-             "relu_backward: input gradient size not equal to input size");
+             "relu_backward: input grad size isn't equal to input size");
 
     std::transform(input->get_vec().begin(), input->get_vec().end(),
                    output_grad->get_vec().begin(),
@@ -48,14 +47,13 @@ void softmax_forward(Array *output, const Array *input) {
     int batch_size = input->get_shape()[0];
     int batch_stride =
         std::accumulate(input->get_shape().begin() + 1,
-                        input->get_shape().end(), 1.0, std::multiplies<int>());
+                        input->get_shape().end(), 1, std::multiplies<int>());
 
     for (int i = 0; i < batch_size; i++) {
         auto in_begin = input->get_vec().begin() + i * batch_stride;
         auto out_begin = output->get_vec().begin() + i * batch_stride;
 
         float max_val = *std::max_element(in_begin, in_begin + batch_stride);
-
         std::transform(in_begin, in_begin + batch_stride, out_begin,
                        [&](float x) { return std::exp(x - max_val); });
 
@@ -67,25 +65,18 @@ void softmax_forward(Array *output, const Array *input) {
     }
 }
 
-void softmax_backward(Array *input_grad, const Array *output_grad) {
-    CHECK_EQ(input_grad->get_vec().size(), output_grad->get_vec().size(),
-             "softmax_backward: input gradient size not equal to output "
-             "gradient size");
-
-    std::copy(output_grad->get_vec().begin(), output_grad->get_vec().end(),
-              input_grad->get_vec().begin());
-}
-
 void Softmax::forward() {
     const Array *input = prev->get_output();
     INIT_ARRAY(output, input->get_shape());
     softmax_forward(output.get(), input);
+
+    // for calculating gradient in Loss::calcualte_loss()
+    INIT_ARRAY(grad, input->get_shape());
 }
 
 void Softmax::backward() {
-    const Array *output_grad = next->get_grad();
-    INIT_ARRAY(grad, output_grad->get_shape());
-    softmax_backward(grad.get(), output_grad);
+    // Note: Softmax is often the last activation layer in the neural network
+    // and that the gradient is computed in Loss::calculate_loss()
 }
 
 } // namespace nnv2

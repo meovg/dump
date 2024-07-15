@@ -23,8 +23,6 @@ void SGD::update_parameters(int batch_size) {
         func_mul(param, param, t1);
         func_mul(grad, grad, t2);
         func_sub(param, param, grad);
-
-        grad->zero();
     }
 }
 

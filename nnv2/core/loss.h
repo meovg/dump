@@ -4,10 +4,15 @@
 
 namespace nnv2 {
 
-class Loss : public Layer {
+class Loss {
 public:
-    Loss() : Layer() {}
+    Loss() {}
+
+    void set_target(Layer *layer) { target = layer; }
     virtual float calculate_loss(const Array *results) = 0;
+
+protected:
+    Layer *target;
 };
 
 class CrossEntropyLoss : public Loss {

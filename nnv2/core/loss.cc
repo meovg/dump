@@ -5,8 +5,7 @@
 namespace nnv2 {
 
 float CrossEntropyLoss::calculate_loss(const Array *results) {
-    const Array *preds = prev->get_output();
-    Array *preds_grad = prev->get_grad();
+    const Array *preds = target->get_output();
 
     CHECK_EQ(preds->get_shape(), results->get_shape(),
              "calculate_loss: shape of predictions mismatched with results");
@@ -26,9 +25,9 @@ float CrossEntropyLoss::calculate_loss(const Array *results) {
     Array loss_mean({1});
     func_mean(&loss_mean, &loss, 0, false);
 
-    // propagate gradient back to the last layer
-    INIT_ARRAY(grad, preds->get_shape());
-    func_sub(grad.get(), preds, results);
+    // calculate loss gradient and propagate it back to the target layer
+    Array *grad = target->get_grad();
+    func_sub(grad, preds, results);
 
     return -1.0 * loss_mean.get_vec()[0];
 }

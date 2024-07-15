@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
+#include <numeric>
 #include <utility>
 
 #include "array.h"
@@ -9,18 +10,14 @@
 namespace nnv2 {
 
 Array::Array(const std::vector<int> &_shape) : shape(_shape) {
-    int size = 1;
-    for (int i = 0; i < shape.size(); i++) {
-        size *= shape[i];
-    }
+    int size =
+        std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
     vec.resize(size, FLT_MIN);
 }
 
 Array::Array(const std::vector<int> &_shape, float _value) : shape(_shape) {
-    int size = 1;
-    for (int i = 0; i < shape.size(); i++) {
-        size *= shape[i];
-    }
+    int size =
+        std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
     vec.resize(size, _value);
 }
 
@@ -54,6 +51,8 @@ Array &Array::operator=(Array &&other) {
 }
 
 void Array::zero() {
+    // Fill the array with the smallest positive float value instead of 0 to
+    // avoid division by 0
     std::fill(vec.begin(), vec.end(), FLT_MIN);
 }
 
@@ -64,25 +63,17 @@ void Array::reshape(const std::vector<int> &_shape) {
 
 void Array::resize(const std::vector<int> &_shape) {
     shape = _shape;
-
-    int size = 1;
-    for (int i = 0; i < _shape.size(); i++) {
-        size *= _shape[i];
-    }
-
+    int size =
+        std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
     if (size != vec.size()) {
         vec.resize(size);
     }
 }
 
 void Array::check_shape() {
-    int size = 1;
-    for (int i = 0; i < shape.size(); i++) {
-        size *= shape[i];
-    }
-
-    CHECK_EQ(size, vec.size(),
-             "Array::check_shape: shape mismatched with number of elements");
+    int size =
+        std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
+    CHECK_EQ(size, vec.size(), "Array: shape mismatched with size");
 }
 
 } // namespace nnv2

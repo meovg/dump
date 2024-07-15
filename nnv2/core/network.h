@@ -19,9 +19,10 @@ public:
     void train(int epochs);
     void test();
 
+private:
+    void train_epoch();
     float top1_accuracy(const Array *preds, const Array *results);
 
-private:
     std::vector<std::unique_ptr<Layer>> layers;
 
     DataLoader *loader;

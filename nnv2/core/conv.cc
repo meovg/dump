@@ -42,7 +42,6 @@ void im2col(const Array *im, Array *cols, int pad_h, int pad_w, int kernel_h,
             for (int c = 0; c < out_w; c++) {
                 int im_r = kernel_r + stride_h * r;
                 int im_c = kernel_c + stride_w * c;
-
                 int col_idx = (i * out_h + r) * out_w + c;
                 cols->get_vec()[col_idx] =
                     im_get_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w);
@@ -87,7 +86,6 @@ void col2im(const Array *cols, Array *im, int pad_h, int pad_w, int kernel_h,
             for (int c = 0; c < out_w; c++) {
                 int im_r = kernel_r + stride_h * r;
                 int im_c = kernel_c + stride_w * c;
-
                 int cols_idx = (i * out_h + r) * out_w + c;
                 float value = cols->get_vec()[cols_idx];
                 im_add_pixel(im, feat_idx, im_r, im_c, pad_h, pad_w, value);

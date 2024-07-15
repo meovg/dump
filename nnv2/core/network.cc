@@ -20,14 +20,13 @@ void Network::init(DataLoader *loader_, Loss *loss_, SGD *optimizer_) {
 
     // connect loader to the first layer
     loader->connect(layers.front().get());
-
     // connect each layer to the subsequent one
     for (int i = 1; i < layers.size(); i++) {
         layers[i - 1]->connect(layers[i].get());
     }
 
-    // connect the last layer to the loss layer
-    layers.back()->connect(loss);
+    // assign target to the loss object
+    loss->set_target(layers.back().get());
 
     // register parameters to the optimizer
     for (int i = 0; i < layers.size(); i++) {
@@ -37,39 +36,41 @@ void Network::init(DataLoader *loader_, Loss *loss_, SGD *optimizer_) {
 
 void Network::train(int epochs) {
     for (int e = 0; e < epochs; e++) {
-        float loss_sum = 0.0;
-        float accuracy = 0.0;
-        int batch_count = 0;
-
-        loader->reset();
-
-        while (loader->has_next_train_batch()) {
-            batch_count++;
-            int batch_size = loader->load_train_batch();
-
-            // perform forward propagation to calculate prediction
-            for (int i = 0; i < layers.size(); i++) {
-                layers[i]->forward();
-            }
-            // calculate loss & accuracy of prediction compared to actual result
-            loss_sum += loss->calculate_loss(loader->get_labels());
-            accuracy += top1_accuracy(layers.back()->get_output(),
-                                      loader->get_labels());
-
-            // backpropagate the loss gradient to the layers
-            for (int i = layers.size() - 1; i >= 0; i--) {
-                layers[i]->backward();
-            }
-            // update the parameters with regard to the gradient
-            optimizer->update_parameters(batch_size);
-        }
-
         std::cout << "[Epoch: " << e + 1 << "/" << epochs << "] ";
-        std::cout << "Avg loss: " << loss_sum / batch_count << ", ";
-        std::cout << "Avg accuracy: " << accuracy / batch_count << "; ";
-
+        loader->reset();
+        train_epoch();
         test();
     }
+}
+
+void Network::train_epoch() {
+    float loss_sum = 0.0;
+    float accuracy = 0.0;
+    int batch_count = 0;
+
+    while (loader->has_next_train_batch()) {
+        batch_count++;
+        int batch_size = loader->load_train_batch();
+
+        // perform forward propagation to calculate prediction
+        for (int i = 0; i < layers.size(); i++) {
+            layers[i]->forward();
+        }
+        // calculate loss & accuracy of prediction compared to actual result
+        loss_sum += loss->calculate_loss(loader->get_labels());
+        accuracy +=
+            top1_accuracy(layers.back()->get_output(), loader->get_labels());
+
+        // backpropagate the loss gradient to the layers
+        for (int i = layers.size() - 1; i >= 0; i--) {
+            layers[i]->backward();
+        }
+        // update the parameters with regard to the gradient
+        optimizer->update_parameters(batch_size);
+    }
+
+    std::cout << "Avg loss: " << loss_sum / batch_count << ", ";
+    std::cout << "Avg accuracy: " << accuracy / batch_count << "; ";
 }
 
 void Network::test() {
