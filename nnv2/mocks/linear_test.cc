@@ -2,8 +2,8 @@
 #include <iostream>
 #include <vector>
 
+#include "common.h"
 #include "linear.h"
-#include "utils.h"
 
 using namespace nnv2;
 

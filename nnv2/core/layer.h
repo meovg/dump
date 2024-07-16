@@ -2,13 +2,11 @@
 
 #include <memory>
 #include <stdexcept>
-#include <utility>
+#include <vector>
 
-#include "array.h"
+#include "common.h"
 
 namespace nnv2 {
-
-using Param = std::pair<Array *, Array *>;
 
 class Layer {
 public:

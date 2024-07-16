@@ -1,8 +1,9 @@
 #include <cstdlib>
 #include <fstream>
+#include <vector>
 
+#include "common.h"
 #include "mnist.h"
-#include "utils.h"
 
 namespace nnv2 {
 

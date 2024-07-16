@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "layer.h"
 
 namespace nnv2 {
@@ -12,7 +14,6 @@ public:
     void backward() override;
 
     Array *get_grad() { return next->get_grad(); }
-
     Array *get_output() { return prev->get_output(); }
 
 private:

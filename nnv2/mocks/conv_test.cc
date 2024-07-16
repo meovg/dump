@@ -3,9 +3,9 @@
 #include <iostream>
 #include <vector>
 
+#include "common.h"
 #include "conv.h"
 #include "mathfunc.h"
-#include "utils.h"
 
 using namespace nnv2;
 

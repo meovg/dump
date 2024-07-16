@@ -1,7 +1,10 @@
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <random>
+#include <vector>
 
+#include "common.h"
 #include "initializer.h"
 
 namespace nnv2 {
@@ -23,17 +26,17 @@ static void uniform_init(std::vector<float> &data, float r) {
 }
 
 void LecunNormal::initialize(Array *a, int fan_in, int fan_out) const {
-    float s = std::sqrt(1.f / fan_in);
+    float s = sqrtf(1.f / fan_in);
     normal_init(a->get_vec(), s);
 }
 
 void XavierNormal::initialize(Array *a, int fan_in, int fan_out) const {
-    float s = std::sqrt(2.f / (fan_in + fan_out));
+    float s = sqrtf(2.f / (fan_in + fan_out));
     normal_init(a->get_vec(), s);
 }
 
 void KaimingNormal::initialize(Array *a, int fan_in, int fan_out) const {
-    float s = std::sqrt(2.f / fan_in);
+    float s = sqrtf(2.f / fan_in);
     normal_init(a->get_vec(), s);
 }
 
@@ -42,17 +45,17 @@ void SimplyNormal::initialize(Array *a, int fan_in, int fan_out) const {
 }
 
 void LecunUniform::initialize(Array *a, int fan_in, int fan_out) const {
-    float r = std::sqrt(1.f / fan_in);
+    float r = sqrtf(1.f / fan_in);
     uniform_init(a->get_vec(), r);
 }
 
 void XavierUniform::initialize(Array *a, int fan_in, int fan_out) const {
-    float r = std::sqrt(6.f / (fan_in + fan_out));
+    float r = sqrtf(6.f / (fan_in + fan_out));
     uniform_init(a->get_vec(), r);
 }
 
 void KaimingUniform::initialize(Array *a, int fan_in, int fan_out) const {
-    float r = std::sqrt(6.f / fan_in);
+    float r = sqrtf(6.f / fan_in);
     uniform_init(a->get_vec(), r);
 }
 

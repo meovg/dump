@@ -2,8 +2,8 @@
 #include <iostream>
 #include <vector>
 
+#include "common.h"
 #include "dataloader.h"
-#include "utils.h"
 
 namespace nnv2 {
 
@@ -18,12 +18,9 @@ int DataLoader::load_train_batch() {
     // initialize batch memory
     int h = dataset->get_image_height();
     int w = dataset->get_image_width();
-    std::vector<int> output_shape = {size, 1, h, w};
-    INIT_ARRAY(output, output_shape);
-
     int n_labels = dataset->get_label_count();
-    std::vector<int> output_labels_shape = {size, n_labels};
-    INIT_ARRAY(output_labels, output_labels_shape);
+    init_array(output, {size, 1, h, w});
+    init_array(output_labels, {size, n_labels});
 
     // extract a batch of train data
     int im_stride = h * w;
@@ -53,12 +50,9 @@ int DataLoader::load_test_batch() {
     // initialize batch memory
     int h = dataset->get_image_height();
     int w = dataset->get_image_width();
-    std::vector<int> output_shape = {size, 1, h, w};
-    INIT_ARRAY(output, output_shape);
-
     int n_labels = dataset->get_label_count();
-    std::vector<int> output_labels_shape = {size, n_labels};
-    INIT_ARRAY(output_labels, output_labels_shape);
+    init_array(output, {size, 1, h, w});
+    init_array(output_labels, {size, n_labels});
 
     // extract a batch of test data
     int im_stride = h * w;

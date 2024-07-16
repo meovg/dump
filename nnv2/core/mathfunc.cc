@@ -1,12 +1,13 @@
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <numeric>
 #include <vector>
 
 #include <cblas.h>
 
+#include "common.h"
 #include "mathfunc.h"
-#include "utils.h"
 
 namespace nnv2 {
 

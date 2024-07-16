@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+
+#include "common.h"
 #include "layer.h"
 
 namespace nnv2 {

@@ -3,7 +3,6 @@
 #include <numeric>
 
 #include "activation.h"
-#include "utils.h"
 
 namespace nnv2 {
 
@@ -55,7 +54,7 @@ void softmax_forward(Array *output, const Array *input) {
 
         float max_val = *std::max_element(in_begin, in_begin + batch_stride);
         std::transform(in_begin, in_begin + batch_stride, out_begin,
-                       [&](float x) { return std::exp(x - max_val); });
+                       [&](float x) { return expf(x - max_val); });
 
         float exp_sum =
             std::accumulate(out_begin, out_begin + batch_stride, 0.f);
@@ -67,11 +66,11 @@ void softmax_forward(Array *output, const Array *input) {
 
 void Softmax::forward() {
     const Array *input = prev->get_output();
-    INIT_ARRAY(output, input->get_shape());
+    init_array(output, input->get_shape());
     softmax_forward(output.get(), input);
 
     // for calculating gradient in Loss::calcualte_loss()
-    INIT_ARRAY(grad, input->get_shape());
+    init_array(grad, input->get_shape());
 }
 
 void Softmax::backward() {

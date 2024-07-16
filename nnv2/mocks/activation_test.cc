@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "activation.h"
+#include "common.h"
 
 using namespace nnv2;
 

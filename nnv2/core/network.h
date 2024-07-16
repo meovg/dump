@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 
+#include "common.h"
 #include "dataloader.h"
 #include "layer.h"
 #include "loss.h"

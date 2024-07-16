@@ -1,8 +1,8 @@
 #include <cfloat>
 #include <vector>
 
+#include "common.h"
 #include "maxpool.h"
-#include "utils.h"
 
 namespace nnv2 {
 
@@ -119,8 +119,7 @@ void MaxPool2D::forward() {
     int out_h = (in_h + 2 * pad_h - kernel_h) / stride_h + 1;
     int out_w = (in_w + 2 * pad_w - kernel_w) / stride_w + 1;
 
-    std::vector<int> output_shape = {batch_size, in_feats, out_h, out_w};
-    INIT_ARRAY(output, output_shape);
+    init_array(output, {batch_size, in_feats, out_h, out_w});
     indices.resize(batch_size * in_feats * out_h * out_w);
 
     maxpool_forward(output.get(), input, indices, pad_h, pad_w, kernel_h,
@@ -130,7 +129,7 @@ void MaxPool2D::forward() {
 void MaxPool2D::backward() {
     const Array *input = prev->get_output();
     const Array *output_grad = next->get_grad();
-    INIT_ARRAY(grad, input->get_shape());
+    init_array(grad, input->get_shape());
     maxpool_backward(grad.get(), output_grad, indices);
 }
 

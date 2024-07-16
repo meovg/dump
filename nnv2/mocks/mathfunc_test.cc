@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-#include "array.h"
+#include "common.h"
 #include "mathfunc.h"
 
 using namespace nnv2;

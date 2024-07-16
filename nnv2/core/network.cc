@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include "common.h"
 #include "network.h"
-#include "utils.h"
 
 namespace nnv2 {
 

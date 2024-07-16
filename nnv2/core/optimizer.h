@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "array.h"
+#include "common.h"
 #include "layer.h"
 
 namespace nnv2 {

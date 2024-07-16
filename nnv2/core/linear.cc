@@ -1,8 +1,8 @@
 #include <vector>
 
+#include "common.h"
 #include "linear.h"
 #include "mathfunc.h"
-#include "utils.h"
 
 namespace nnv2 {
 
@@ -25,15 +25,13 @@ void linear_backward(Array *input_grad, Array *weight_grad, const Array *input,
                      const Array *weight, const Array *output_grad,
                      ArrayMap &cache) {
     // calculate transpose of input: X^T
-    std::vector<int> input_t_shape = {input->get_shape()[1],
-                                      input->get_shape()[0]};
-    INIT_CACHE(cache, "input_t", input_t_shape);
+    init_cache(cache, "input_t",
+               {input->get_shape()[1], input->get_shape()[0]});
     func_transpose(cache["input_t"].get(), input);
 
     // calculate transpose of weight: W^T
-    std::vector<int> weight_t_shape = {weight->get_shape()[1],
-                                       weight->get_shape()[0]};
-    INIT_CACHE(cache, "weight_t", weight_t_shape);
+    init_cache(cache, "weight_t",
+               {weight->get_shape()[1], weight->get_shape()[0]});
     func_transpose(cache["weight_t"].get(), weight);
 
     // calculate gradient with respect to weight: dW = X^T * dA
@@ -68,8 +66,7 @@ void Linear::forward() {
     int batch_size = input->get_shape()[0];
 
     // initialize storage for output
-    std::vector<int> output_shape = {batch_size, out_feats};
-    INIT_ARRAY(output, output_shape);
+    init_array(output, {batch_size, out_feats});
 
     linear_forward(output.get(), input, weight.get());
     linear_forward_bias(output.get(), bias.get());
@@ -79,7 +76,7 @@ void Linear::backward() {
     const Array *input = prev->get_output();
     const Array *output_grad = next->get_grad();
 
-    INIT_ARRAY(grad, input->get_shape());
+    init_array(grad, input->get_shape());
 
     linear_backward_bias(bias_grad.get(), output_grad);
     linear_backward(grad.get(), weight_grad.get(), input, weight.get(),

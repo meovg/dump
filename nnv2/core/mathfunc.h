@@ -1,6 +1,6 @@
 #pragma once
 
-#include "array.h"
+#include "common.h"
 
 namespace nnv2 {
 

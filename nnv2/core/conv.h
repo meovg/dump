@@ -1,8 +1,11 @@
 #pragma once
 
+#include <memory>
+#include <vector>
+
+#include "common.h"
 #include "initializer.h"
 #include "layer.h"
-#include "utils.h"
 
 namespace nnv2 {
 

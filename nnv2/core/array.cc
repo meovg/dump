@@ -1,10 +1,8 @@
 #include <algorithm>
-#include <cassert>
+#include <functional>
 #include <numeric>
-#include <utility>
 
-#include "array.h"
-#include "utils.h"
+#include "common.h"
 
 namespace nnv2 {
 
@@ -71,6 +69,26 @@ void Array::check_shape() {
     int size =
         std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
     CHECK_EQ(size, vec.size(), "Array: shape mismatched with size");
+}
+
+//
+// functions that help initialize Array objects from smart pointers or ArrayMap
+void init_array(std::unique_ptr<Array> &ptr, const std::vector<int> &shape) {
+    if (ptr.get() == nullptr) {
+        ptr.reset(new Array(shape));
+    } else {
+        if (ptr->get_shape() != shape) {
+            ptr->resize(shape);
+        }
+        ptr->zero();
+    }
+}
+
+void init_cache(ArrayMap &map, std::string key, const std::vector<int> &shape) {
+    if (map.find(key) == map.end()) {
+        map[key] = std::make_unique<Array>(shape);
+    }
+    init_array(map[key], shape);
 }
 
 } // namespace nnv2

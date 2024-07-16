@@ -1,7 +1,7 @@
 #pragma once
 
+#include "common.h"
 #include "layer.h"
-#include "utils.h"
 
 namespace nnv2 {
 

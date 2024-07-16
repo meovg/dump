@@ -1,18 +1,10 @@
 // LeNet-5 architecture example
 
 #include <iostream>
+#include <memory>
+#include <string>
 
-#include "activation.h"
-#include "conv.h"
-#include "dataloader.h"
-#include "flatten.h"
-#include "initializer.h"
-#include "linear.h"
-#include "loss.h"
-#include "maxpool.h"
-#include "mnist.h"
-#include "network.h"
-#include "optimizer.h"
+#include "nnv2.h"
 
 using namespace nnv2;
 

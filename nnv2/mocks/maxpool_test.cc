@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 
+#include "common.h"
 #include "maxpool.h"
 
 using namespace nnv2;
