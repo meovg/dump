@@ -3,10 +3,13 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 #include "array.h"
 
 namespace nnv2 {
+
+using ArrayMap = std::unordered_map<std::string, std::unique_ptr<Array>>;
 
 #define CHECK_EQ(val1, val2, message)                                          \
     do {                                                                       \
@@ -36,6 +39,14 @@ namespace nnv2 {
             }                                                                  \
             (arr_ptr)->zero();                                                 \
         }                                                                      \
+    } while (0)
+
+#define INIT_CACHE(map, key, shape)                                            \
+    do {                                                                       \
+        if ((map).find((key)) == (map).end()) {                                \
+            (map)[(key)] = std::make_unique<Array>((shape));                   \
+        }                                                                      \
+        INIT_ARRAY((map)[(key)], (shape));                                     \
     } while (0)
 
 } // namespace nnv2

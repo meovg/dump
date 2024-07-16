@@ -1,6 +1,7 @@
 #pragma once
 
 #include "layer.h"
+#include "utils.h"
 
 namespace nnv2 {
 
@@ -13,6 +14,7 @@ public:
 
 protected:
     Layer *target;
+    ArrayMap cache;
 };
 
 class CrossEntropyLoss : public Loss {

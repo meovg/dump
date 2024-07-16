@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cassert>
-#include <cfloat>
 #include <numeric>
 #include <utility>
 
@@ -12,7 +11,7 @@ namespace nnv2 {
 Array::Array(const std::vector<int> &_shape) : shape(_shape) {
     int size =
         std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<int>());
-    vec.resize(size, FLT_MIN);
+    vec.resize(size);
 }
 
 Array::Array(const std::vector<int> &_shape, float _value) : shape(_shape) {
@@ -51,9 +50,7 @@ Array &Array::operator=(Array &&other) {
 }
 
 void Array::zero() {
-    // Fill the array with the smallest positive float value instead of 0 to
-    // avoid division by 0
-    std::fill(vec.begin(), vec.end(), FLT_MIN);
+    std::fill(vec.begin(), vec.end(), 0.0);
 }
 
 void Array::reshape(const std::vector<int> &_shape) {

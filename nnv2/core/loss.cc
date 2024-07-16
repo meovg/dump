@@ -11,25 +11,27 @@ float CrossEntropyLoss::calculate_loss(const Array *results) {
              "calculate_loss: shape of predictions mismatched with results");
 
     // get distribution that matches the label in the result
-    Array top1_dist(preds->get_shape());
-    func_mul(&top1_dist, preds, results);
+    INIT_CACHE(cache, "top1_dist", preds->get_shape());
+    func_mul(cache["top1_dist"].get(), preds, results);
 
     // reduce the distribution matrix to one-dimensional array
-    Array top1_dist_reduced({preds->get_shape()[0]});
-    func_sum(&top1_dist_reduced, &top1_dist, 1);
+    std::vector<int> preds_reduced_shape = {preds->get_shape()[0]};
+    INIT_CACHE(cache, "top1_dist_reduced", preds_reduced_shape);
+    func_sum(cache["top1_dist_reduced"].get(), cache["top1_dist"].get(), 1);
 
     // calculate average log loss value of a batch
-    Array loss({preds->get_shape()[0]});
-    func_log(&loss, &top1_dist_reduced);
+    INIT_CACHE(cache, "loss", preds_reduced_shape);
+    func_log(cache["loss"].get(), cache["top1_dist_reduced"].get());
 
-    Array loss_mean({1});
-    func_mean(&loss_mean, &loss, 0, false);
+    std::vector<int> loss_mean_shape = {1};
+    INIT_CACHE(cache, "loss_mean", loss_mean_shape);
+    func_mean(cache["loss_mean"].get(), cache["loss"].get(), 0, false);
 
     // calculate loss gradient and propagate it back to the target layer
     Array *grad = target->get_grad();
     func_sub(grad, preds, results);
 
-    return -1.0 * loss_mean.get_vec()[0];
+    return -1.0 * cache["loss_mean"]->get_vec()[0];
 }
 
 } // namespace nnv2

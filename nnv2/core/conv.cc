@@ -152,7 +152,6 @@ void conv_forward_bias(Array *output, const Array *bias) {
     int out_w = output->get_shape()[3];
 
     std::vector<float> &output_ref = output->get_vec();
-
     for (int i = 0; i < output_ref.size(); i++) {
         int feat_idx = (i / (out_h * out_w)) % out_feats;
         output_ref[i] += bias->get_vec()[feat_idx];
@@ -162,7 +161,8 @@ void conv_forward_bias(Array *output, const Array *bias) {
 // Calculates the input gradient, kernel gradient from the output gradient
 void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad,
                    const Array *input, Array *kernel, const Array *cols,
-                   int pad_h, int pad_w, int stride_h, int stride_w) {
+                   int pad_h, int pad_w, int stride_h, int stride_w,
+                   ArrayMap &cache) {
     CHECK_EQ(input_grad->get_shape().size(), 4,
              "conv_backward: input gradient shape error");
     CHECK_EQ(kernel_grad->get_shape().size(), 4,
@@ -207,22 +207,26 @@ void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad,
     // Cols^T:  shape (n, o_h * o_w, i_f * k_h * k_w)
 
     // calculate Cols^T
-    Array cols_t({batch_size, out_h * out_w, in_feats * kernel_h * kernel_w});
-    func_transpose(&cols_t, cols);
+    std::vector<int> cols_t_shape = {batch_size, out_h * out_w,
+                                     in_feats * kernel_h * kernel_w};
+    INIT_CACHE(cache, "cols_t", cols_t_shape);
+    func_transpose(cache["cols_t"].get(), cols);
 
     // reshape dL/dY to (n, o_f, o_h * o_w)
     output_grad->reshape({batch_size, out_feats, out_h * out_w});
 
     // calculate dL/dY * Cols^T
-    Array kernel_grad_unfolded(
-        {batch_size, out_feats, in_feats * kernel_h * kernel_w});
-    func_matmul(&kernel_grad_unfolded, output_grad, &cols_t);
+    std::vector<int> kernel_grad_unfolded_shape = {
+        batch_size, out_feats, in_feats * kernel_h * kernel_w};
+    INIT_CACHE(cache, "kernel_grad_unfolded", kernel_grad_unfolded_shape);
+    func_matmul(cache["kernel_grad_unfolded"].get(), output_grad,
+                cache["cols_t"].get());
 
     // dL/dY * Cols^T: shape(n, o_f, i_f * k_h * k_w) => (n, o_f, i_f, k_h, k_w)
     // dL/dK is the sum of dL/dY * Cols^T along the batch
-    kernel_grad_unfolded.reshape(
+    cache["kernel_grad_unfolded"]->reshape(
         {batch_size, out_feats, in_feats, kernel_h, kernel_w});
-    func_sum(kernel_grad, &kernel_grad_unfolded, 0);
+    func_sum(kernel_grad, cache["kernel_grad_unfolded"].get(), 0);
 
     // dL/dCols = K^T * dL/dY
     // dL/dCols: shape (n, i_f * k_h * k_w, o_h * o_w)
@@ -231,24 +235,29 @@ void conv_backward(Array *input_grad, Array *kernel_grad, Array *output_grad,
 
     // reshape K to (o_f, i_f * k_h * k_w) and calculate K^T
     kernel->reshape({out_feats, in_feats * kernel_h * kernel_w});
-    Array kernel_t({in_feats * kernel_h * kernel_w, out_feats});
-    func_transpose(&kernel_t, kernel);
+    std::vector<int> kernel_t_shape = {in_feats * kernel_h * kernel_w,
+                                       out_feats};
+    INIT_CACHE(cache, "kernel_t", kernel_t_shape);
+    func_transpose(cache["kernel_t"].get(), kernel);
 
     // calculate dL/dCols = K^T * dL/dY
-    Array cols_grad(
-        {batch_size, in_feats * kernel_h * kernel_w, out_h * out_w});
-    func_matmul(&cols_grad, &kernel_t, output_grad, 1);
+    std::vector<int> cols_grad_shape = {
+        batch_size, in_feats * kernel_h * kernel_w, out_h * out_w};
+    INIT_CACHE(cache, "cols_grad", cols_grad_shape);
+    func_matmul(cache["cols_grad"].get(), cache["kernel_t"].get(), output_grad,
+                1);
 
     // calculate dL/dX = col2im(dL/dCols)
-    col2im(&cols_grad, input_grad, pad_h, pad_w, kernel_h, kernel_w, stride_h,
-           stride_w);
+    col2im(cache["cols_grad"].get(), input_grad, pad_h, pad_w, kernel_h,
+           kernel_w, stride_h, stride_w);
 
     // restore shape
     output_grad->reshape({batch_size, out_feats, out_h, out_w});
     kernel->reshape({out_feats, in_feats, kernel_h, kernel_w});
 }
 
-void conv_backward_bias(Array *bias_grad, const Array *output_grad) {
+void conv_backward_bias(Array *bias_grad, const Array *output_grad,
+                        ArrayMap &cache) {
     // Input:
     //   dL/db: shape (1, o_f)
     //   dL/dY: shape (n, o_f, o_h, o_w)
@@ -260,13 +269,14 @@ void conv_backward_bias(Array *bias_grad, const Array *output_grad) {
     CHECK_EQ(bias_grad->get_shape()[1], out_feats,
              "conv_backward_bias: bias_grad size error");
 
-    Array fold3({batch_size, out_feats, out_h});
-    Array fold2({batch_size, out_feats});
+    std::vector<int> fold3_shape = {batch_size, out_feats, out_h};
+    std::vector<int> fold2_shape = {batch_size, out_feats};
+    INIT_CACHE(cache, "fold3", fold3_shape);
+    INIT_CACHE(cache, "fold2", fold2_shape);
 
-    func_sum(&fold3, output_grad, 3);
-    func_sum(&fold2, &fold3, 2);
-
-    func_sum(bias_grad, &fold2, 0, false);
+    func_sum(cache["fold3"].get(), output_grad, 3);
+    func_sum(cache["fold2"].get(), cache["fold3"].get(), 2);
+    func_sum(bias_grad, cache["fold2"].get(), 0, false);
 }
 
 Conv2D::Conv2D(int in_feats, int out_feats, int in_h, int in_w, int pad_h,
@@ -316,9 +326,10 @@ void Conv2D::backward() {
 
     INIT_ARRAY(grad, input->get_shape());
 
-    conv_backward_bias(bias_grad.get(), output_grad);
+    conv_backward_bias(bias_grad.get(), output_grad, cache);
     conv_backward(grad.get(), kernel_grad.get(), output_grad, input,
-                  kernel.get(), imcols.get(), pad_h, pad_w, stride_h, stride_w);
+                  kernel.get(), imcols.get(), pad_h, pad_w, stride_h, stride_w,
+                  cache);
 }
 
 } // namespace nnv2

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "linear.h"
+#include "utils.h"
 
 using namespace nnv2;
 
@@ -33,8 +34,10 @@ void test_linear_backward(void) {
     Array weights({3, 3}, {0, 1, 2, 3, 4, 5, 6, 7, 8});
     Array input_grad({2, 3});
     Array weights_grad({3, 3});
+    ArrayMap cache;
 
-    linear_backward(&input_grad, &weights_grad, &input, &weights, &output_grad);
+    linear_backward(&input_grad, &weights_grad, &input, &weights, &output_grad,
+                    cache);
 
     assert(input_grad.get_vec() == std::vector<float>({5, 14, 23, 14, 50, 86}));
     assert(weights_grad.get_vec() ==

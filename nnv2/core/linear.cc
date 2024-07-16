@@ -22,20 +22,24 @@ void linear_forward_bias(Array *output, const Array *bias) {
 }
 
 void linear_backward(Array *input_grad, Array *weight_grad, const Array *input,
-                     const Array *weight, const Array *output_grad) {
+                     const Array *weight, const Array *output_grad,
+                     ArrayMap &cache) {
     // calculate transpose of input: X^T
-    Array input_t({input->get_shape()[1], input->get_shape()[0]});
-    func_transpose(&input_t, input);
+    std::vector<int> input_t_shape = {input->get_shape()[1],
+                                      input->get_shape()[0]};
+    INIT_CACHE(cache, "input_t", input_t_shape);
+    func_transpose(cache["input_t"].get(), input);
 
-    // calculate transpose of output: W^T
-    Array weight_t({weight->get_shape()[1], weight->get_shape()[0]});
-    func_transpose(&weight_t, weight);
+    // calculate transpose of weight: W^T
+    std::vector<int> weight_t_shape = {weight->get_shape()[1],
+                                       weight->get_shape()[0]};
+    INIT_CACHE(cache, "weight_t", weight_t_shape);
+    func_transpose(cache["weight_t"].get(), weight);
 
     // calculate gradient with respect to weight: dW = X^T * dA
-    func_matmul(weight_grad, &input_t, output_grad);
-
+    func_matmul(weight_grad, cache["input_t"].get(), output_grad);
     // calculate gradient with respect to input: dX = dA * W^T
-    func_matmul(input_grad, output_grad, &weight_t);
+    func_matmul(input_grad, output_grad, cache["weight_t"].get());
 }
 
 void linear_backward_bias(Array *bias_grad, const Array *output_grad) {
@@ -79,7 +83,7 @@ void Linear::backward() {
 
     linear_backward_bias(bias_grad.get(), output_grad);
     linear_backward(grad.get(), weight_grad.get(), input, weight.get(),
-                    output_grad);
+                    output_grad, cache);
 }
 
 } // namespace nnv2

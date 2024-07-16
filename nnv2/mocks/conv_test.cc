@@ -5,6 +5,7 @@
 
 #include "conv.h"
 #include "mathfunc.h"
+#include "utils.h"
 
 using namespace nnv2;
 
@@ -163,9 +164,10 @@ void test_conv_backward() {
     Array output_grad({batch_size, out_feats, out_h, out_w},
                       {0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4,
                        5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8});
+    ArrayMap cache;
 
     conv_backward(&input_grad, &kernel_grad, &output_grad, &input, &kernel,
-                  &cols, pad_h, pad_w, stride_h, stride_w);
+                  &cols, pad_h, pad_w, stride_h, stride_w, cache);
 
     assert(input_grad.get_vec() ==
            std::vector<float>(
@@ -205,8 +207,9 @@ void test_conv_backward_bias() {
                        12, 13, 14, 15, 16, 17, 0,  1,  2,  3,  4,  5,
                        6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16, 17});
     Array bias_grad({1, 2});
+    ArrayMap cache;
 
-    conv_backward_bias(&bias_grad, &output_grad);
+    conv_backward_bias(&bias_grad, &output_grad, cache);
 
     assert(bias_grad.get_vec() == std::vector<float>({72, 234}));
 

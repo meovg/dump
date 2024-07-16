@@ -97,7 +97,6 @@ void maxpool_backward(Array *input_grad, const Array *output_grad,
         "maxpool_backward: indices size not equal to output gradient size");
 
     const std::vector<float> &output_grad_ref = output_grad->get_vec();
-
     for (int i = 0; i < output_grad_ref.size(); i++) {
         int max_idx = indices[i];
         input_grad->get_vec()[max_idx] += output_grad_ref[i];
