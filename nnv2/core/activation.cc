@@ -6,6 +6,9 @@
 
 namespace nnv2 {
 
+//
+// ReLU
+//
 void relu_forward(Array *output, const Array *input) {
     CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
              "relu_forward: output size isn't equal to input size");
@@ -39,6 +42,85 @@ void ReLU::backward() {
     relu_backward(output_grad, output_grad, input);
 }
 
+//
+// Sigmoid
+//
+void sigmoid_forward(Array *output, const Array *input) {
+    CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
+             "sigmoid_forward: output size isn't equal to input size");
+
+    std::transform(input->get_vec().begin(), input->get_vec().end(),
+                   output->get_vec().begin(),
+                   [](float x) { return 1 / (1 + expf(-x)); });
+}
+
+void sigmoid_backward(Array *input_grad, const Array *output_grad,
+                      const Array *input) {
+    CHECK_EQ(input_grad->get_vec().size(), output_grad->get_vec().size(),
+             "sigmoid_backward: input grad size isn't equal to output grad "
+             "size");
+    CHECK_EQ(input_grad->get_vec().size(), input->get_vec().size(),
+             "sigmoid_backward: input grad size isn't equal to input size");
+
+    std::transform(input->get_vec().begin(), input->get_vec().end(),
+                   output_grad->get_vec().begin(),
+                   input_grad->get_vec().begin(), [](float i, float od) {
+                       float sigmoid_val = 1 / (1 + expf(-i));
+                       return od * sigmoid_val * (1 - sigmoid_val);
+                   });
+}
+
+void Sigmoid::forward() {
+    Array *input = prev->get_output();
+    sigmoid_forward(input, input);
+}
+
+void Sigmoid::backward() {
+    const Array *input = prev->get_output();
+    Array *output_grad = next->get_grad();
+    sigmoid_backward(output_grad, output_grad, input);
+}
+
+//
+// Tanh
+//
+void tanh_forward(Array *output, const Array *input) {
+    CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
+             "tanh_forward: output size isn't equal to input size");
+
+    std::transform(input->get_vec().begin(), input->get_vec().end(),
+                   output->get_vec().begin(), [](float x) { return tanhf(x); });
+}
+
+void tanh_backward(Array *input_grad, const Array *output_grad,
+                   const Array *input) {
+    CHECK_EQ(input_grad->get_vec().size(), output_grad->get_vec().size(),
+             "tanh_backward: input grad size isn't equal to output grad size");
+    CHECK_EQ(input_grad->get_vec().size(), input->get_vec().size(),
+             "tanh_backward: input grad size isn't equal to input size");
+
+    std::transform(input->get_vec().begin(), input->get_vec().end(),
+                   output_grad->get_vec().begin(),
+                   input_grad->get_vec().begin(), [](float i, float od) {
+                       float tanh_val = tanhf(i);
+                       return od * (1 - tanh_val * tanh_val);
+                   });
+}
+
+void Tanh::forward() {
+    Array *input = prev->get_output();
+    tanh_forward(input, input);
+}
+
+void Tanh::backward() {
+    const Array *input = prev->get_output();
+    Array *output_grad = next->get_grad();
+    tanh_backward(output_grad, output_grad, input);
+}
+
+//
+// Softmax
+//
 void softmax_forward(Array *output, const Array *input) {
     CHECK_EQ(output->get_vec().size(), input->get_vec().size(),
              "softmax_forward: output size not equal to input size");
