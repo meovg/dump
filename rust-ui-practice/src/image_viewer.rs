@@ -1,7 +1,7 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::image::{Handle, Image, Viewer};
-use iced::widget::{button, container, text, Column, Container, Row};
+use iced::widget::{self, Column, Container, Row};
 use iced::window::settings::PlatformSpecific;
 use iced::window::Settings;
 use iced::{application, event, Event, Length::Fill, Subscription, Theme};
@@ -117,22 +117,21 @@ impl ImageViewer {
 
         for idx in start..end {
             let image = Image::new(&self.files[idx].handle);
-            let image = button(image).on_press(Message::SetCurrent(idx));
+            let image = widget::button(image).on_press(Message::SetCurrent(idx));
             col = if idx == self.current {
                 col.push(image.padding(BORDER_WIDTH))
             } else {
                 col.push(image.padding(0.0).width(IMAGE_WIDTH))
             };
         }
-
         col
     }
 
     fn create_viewer(&self) -> Container<Message> {
         if let Some(file) = self.files.get(self.current) {
-            container(Viewer::new(&file.handle).width(Fill).height(Fill)).center(Fill)
+            widget::container(Viewer::new(&file.handle).width(Fill).height(Fill)).center(Fill)
         } else {
-            container(text("No image")).center(Fill)
+            widget::container(widget::text("No image")).center(Fill)
         }
     }
 
@@ -141,21 +140,18 @@ impl ImageViewer {
         if self.files.len() > 1 {
             row = row.push(self.create_tray());
         }
-        row.push(self.create_viewer());
-
-        row
+        row.push(self.create_viewer())
     }
 
     fn subscription(&self) -> Subscription<Message> {
         event::listen_with(|event, _status, _id| match event {
-            Event::Keyboard(KeyEvent::KeyPressed {
-                key: Key::Named(key::Named::ArrowLeft | key::Named::ArrowUp),
-                ..
-            }) => Some(Message::PrevImage),
-            Event::Keyboard(KeyEvent::KeyPressed {
-                key: Key::Named(key::Named::ArrowRight | key::Named::ArrowDown),
-                ..
-            }) => Some(Message::NextImage),
+            Event::Keyboard(KeyEvent::KeyPressed { key, .. }) => match key {
+                Key::Named(key::Named::ArrowLeft | key::Named::ArrowUp) => Some(Message::PrevImage),
+                Key::Named(key::Named::ArrowRight | key::Named::ArrowDown) => {
+                    Some(Message::NextImage)
+                }
+                _ => None,
+            },
             _ => None,
         })
     }

@@ -1,5 +1,5 @@
 [package]
-name = "iced-practice"
+name = "rust-ui-practice"
 version = "0.0.0"
 edition = "2021"
 publish = false
