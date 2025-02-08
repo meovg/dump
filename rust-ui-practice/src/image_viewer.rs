@@ -1,15 +1,13 @@
 use iced::alignment::{Horizontal, Vertical};
 use iced::keyboard::{key, Event as KeyEvent, Key};
 use iced::widget::image::{Handle, Image, Viewer};
-use iced::widget::{self, Column, Container, Row};
-use iced::window::settings::PlatformSpecific;
-use iced::window::Settings;
-use iced::{application, event, Event, Length::Fill, Subscription, Theme};
+use iced::widget::{button, container, text, Column, Container, Row};
+use iced::window;
+use iced::{application, event, Element, Event, Length, Subscription, Theme};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
-const BORDER_WIDTH: f32 = 2.0;
 const WINDOW_WIDTH: f32 = 1200.0;
 const WINDOW_HEIGHT: f32 = 900.0;
 
@@ -103,44 +101,54 @@ impl ImageViewer {
     }
 
     fn create_tray(&self) -> Column<Message> {
-        const WIDTH: f32 = 150.0;
         const MARGIN: f32 = 10.0;
-        const IMAGE_WIDTH: f32 = WIDTH - MARGIN * 2.0 - BORDER_WIDTH * 2.0;
+        const TRAY_WIDTH: f32 = 150.0;
+        const BORDER_WIDTH: f32 = 2.0;
+        const IMAGE_WIDTH: f32 = TRAY_WIDTH - MARGIN * 2.0 - BORDER_WIDTH * 2.0;
 
         let start = self.current.saturating_sub(2);
         let end = (start + 5).min(self.files.len());
         let mut col = Column::new()
             .spacing(MARGIN)
             .padding(MARGIN)
-            .width(WIDTH)
+            .width(TRAY_WIDTH)
             .align_x(Horizontal::Center);
 
         for idx in start..end {
             let image = Image::new(&self.files[idx].handle);
-            let image = widget::button(image).on_press(Message::SetCurrent(idx));
+            let image = button(image).on_press(Message::SetCurrent(idx));
             col = if idx == self.current {
                 col.push(image.padding(BORDER_WIDTH))
             } else {
                 col.push(image.padding(0.0).width(IMAGE_WIDTH))
             };
         }
+
         col
     }
 
     fn create_viewer(&self) -> Container<Message> {
         if let Some(file) = self.files.get(self.current) {
-            widget::container(Viewer::new(&file.handle).width(Fill).height(Fill)).center(Fill)
+            container(
+                Viewer::new(&file.handle)
+                    .width(Length::Fill)
+                    .height(Length::Fill),
+            )
+            .center(Length::Fill)
         } else {
-            widget::container(widget::text("No image")).center(Fill)
+            container(text("No image")).center(Length::Fill)
         }
     }
 
-    fn view(&self) -> Row<Message> {
+    fn view(&self) -> Element<Message> {
         let mut row = Row::new().align_y(Vertical::Center);
         if self.files.len() > 1 {
             row = row.push(self.create_tray());
         }
-        row.push(self.create_viewer())
+        row = row.push(self.create_viewer());
+
+        let view: Element<_> = row.into();
+        view
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -175,31 +183,26 @@ Arguments:
 fn main() -> iced::Result {
     let mut args = env::args_os();
     args.next(); // Skips executable's name
-    match args.next() {
-        Some(arg) if arg == "--help" || arg == "-h" => {
-            print_help();
-            Ok(())
-        }
-        Some(_) => {
-            let size = (WINDOW_WIDTH, WINDOW_HEIGHT).into();
-            application(ImageViewer::title, ImageViewer::update, ImageViewer::view)
-                .subscription(ImageViewer::subscription)
-                .theme(ImageViewer::theme)
-                .window(Settings {
-                    size,
-                    max_size: Some(size),
-                    // Only specific to Loonix
-                    platform_specific: PlatformSpecific {
-                        application_id: "image-viewer".to_string(),
-                        override_redirect: false,
-                    },
-                    ..Default::default()
-                })
-                .run()
-        }
-        None => {
-            print_help();
-            Ok(())
-        }
+
+    let first_arg = args.next();
+    if first_arg.is_none() {
+        print_help();
+        return Ok(());
     }
+    if matches!(first_arg, Some(s) if s == "--help" || s == "-h") {
+        print_help();
+        return Ok(());
+    }
+
+    let size = (WINDOW_WIDTH, WINDOW_HEIGHT).into();
+
+    application(ImageViewer::title, ImageViewer::update, ImageViewer::view)
+        .subscription(ImageViewer::subscription)
+        .theme(ImageViewer::theme)
+        .window(window::Settings {
+            size,
+            max_size: Some(size),
+            ..window::Settings::default()
+        })
+        .run()
 }
